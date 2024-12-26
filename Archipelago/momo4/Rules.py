@@ -7,7 +7,7 @@ from .Options import Goal, Momo4Options
 def set_rules(world: MultiWorld, player: int, options: Momo4Options):
     '''Setup the item placement rules for Momodora 4'''
 
-    ''' Old Lists (for posterity):
+    ''' The original randomizer's requirement lists (for reference):
     requiresCatSphere = new List<int> { 24, 27, 39, 47, 48, 55, 63, 64, 65, 66, 67, 68, 70, 74, 75, 79 };
     requiresCrestFragments = new List<int> { 0, 2, 17, 18, 19, 20, 21, 22, 23, 38, 39, 47, 50, 51, 52, 53, 54, 55, 71, 72, 73, 74, 75 };
     requiresGardenKey = new List<int> { 66, 67, 68, 35, 26, 25, 13 };
@@ -21,58 +21,41 @@ def set_rules(world: MultiWorld, player: int, options: Momo4Options):
     '''
 
     ### Cat Sphere ###
+    # Note: Frore Ciele locations are locked by the region access rule
     reqs_cat_sphere = [
-        'Dirty Shroom',
+        #'Dirty Shroom', # Not Randomized due to bug
+        'Imp - Dirty Shroom Trade', # Replacement check
         'Soft Tissue',
-
-        # TODO: I dont trust multi-item alignemnt (bugs/fragments), check them
-        'Vitality Fragment 1 - Sacred Ordalia Grove', 
-        'Vitality Fragment - Whiteleaf Memorial Park',
-        'Vitality Fragment 1 - Cinder Chambers',
-        
-        # These seem like redundant locks - castle requires crest fragments requires cat sphere
+        'Vitality Fragment 1 - Sacred Ordalia Grove',
+        'Vitality Fragment 3 - Sacred Ordalia Grove',
         'Vitality Fragment 3 - Karst Castle',
-        'Ivory Bug 1 - Karst Castle',
-        'Ivory Bug 2 - Karst Castle',
-
-        # Locations I Do trust (at least kinda)
-        'Ivory Bug 1 - Cinder Chambers',
-        'Ivory Bug 2 - Cinder Chambers',
-        'Ivory Bug 3 - Cinder Chambers',
+        'Ivory Bug 3 - Sacred Ordalia Grove',
+        'Ivory Bug - Subterranean Grave',
         'Ivory Bug 1 - Whiteleaf Memorial Park',
         'Ivory Bug 2 - Whiteleaf Memorial Park',
-        'Ivory Bug 3 - Whiteleaf Memorial Park',        
+        'Ivory Bug 3 - Whiteleaf Memorial Park',
         'Ivory Bug 2 - Forlorn Monastery',
+        'Ivory Bug 2 - Royal Pinacotheca',
+        'Ivory Bug 3 - Royal Pinacotheca',
     ]
     for location in reqs_cat_sphere:
         if is_valid_location_name(location, options):
             set_rule(world.get_location(location, player), lambda state: state.has("Cat Sphere", player))
 
-    # Note: Frore Ciele locations are locked by the region access rule
 
     ### Crest Fragments ###
     # Anything in Karst Castle / Royal Pinacotheca are handled by the region lock
-    # TODO: check if any rely specifically on crest dash?
-    # TODO: Check multi-region drops again (grove/city bellflowers are marked here)
-    # Note: these will resolve fast in testing i think.
     reqs_dash_fragment = [
-        # 3 Bellflowers are listed, castle/bugs/??
-        'Bellflower - Whiteleaf Memorial Park',
-
-        # Sus of these (some are multi-locked, which might be reducable too)
+        # TODO: Bellflower location dependencies seem wrong, need to check these
+        'Bellflower - Karst City', # Castle + one other, but idk which
         'Vitality Fragment 1 - Sacred Ordalia Grove',
-        'Vitality Fragment 1 - Cinder Chambers',
-
-        # The next six fragments are in the locked regions
-        # As are all the ivory bugs
-        # These seem ok at least
+        'Vitality Fragment 3 - Sacred Ordalia Grove',
     ]
     for location in reqs_dash_fragment:
         if is_valid_location_name(location, options):
             set_rule(world.get_location(location, player), lambda state: state.has("Crest Fragment - Dash", player))
 
     ### Garden Key ###
-    # TODO: Check if you can get the ivory bug rewards / vit fragment without the key, as they werent in the list
     # Garden Key dependencies are handled by the region lock  
 
     ### Cinder Key ###
@@ -86,7 +69,7 @@ def set_rules(world: MultiWorld, player: int, options: Momo4Options):
         'Ivory Bug 1 - Forlorn Monastery',
         'Ivory Bug 2 - Forlorn Monastery',
         'Crest Fragment - Forlorn Monastery'
-    ]    
+    ]
     for location in reqs_monastery_key:
         if is_valid_location_name(location, options):
             set_rule(world.get_location(location, player), lambda state: state.has("Monastery Key", player))
@@ -96,7 +79,8 @@ def set_rules(world: MultiWorld, player: int, options: Momo4Options):
         set_rule(world.get_location('Boss - Archpriestess Choir', player), lambda state: state.has("Soft Tissue", player))
 
     ### Dirty Shroom ###
-    set_rule(world.get_location('Imp - Dirty Shroom Trade', player), lambda state: state.has('Dirty Shroom', player))
+    # Not currently randomized because getting it early removes the item from the map
+    #set_rule(world.get_location('Imp - Dirty Shroom Trade', player), lambda state: state.has('Dirty Shroom', player))
 
     ### Sealed Wind ###
     set_rule(world.get_location("Fresh Spring Leaf", player), lambda state: state.has("Sealed Wind", player))

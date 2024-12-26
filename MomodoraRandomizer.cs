@@ -435,10 +435,6 @@ namespace LiveSplit.UI.Components
             {
                 63, 111, 127, 160, 181, 187, 205
             };
-            shopLocations = new List<int>
-            {
-                0,0,0,0,0,0,0
-            };
             //Karst City, Forlorn Monsatery, Subterranean Grave, Whiteleaf Memorial Park, Cinder Chambers 1, Cinder Chambers 2, Royal Pinacotheca
             originalShopItems = new List<List<int>>
             {
@@ -648,8 +644,9 @@ namespace LiveSplit.UI.Components
                     
                     // Check if HP loss should kill the player
                     else if (current != 0 && current < old)
-                        if(ShouldFastKill())
-                            gameProc.WriteValue(currentHealthPointer, 0);
+                        if(ShouldFastKill()){
+                            gameProc.WriteValue<double>(currentHealthPointer, 0);
+                        }
                 };
 
                 //Changed from using specialWatchers list to updating each one manually in update, makes it so you can use levelIDWatcher.current and stuff in other places if needed
@@ -1430,7 +1427,8 @@ namespace LiveSplit.UI.Components
                         description = "+" + healthChange[(int)difficulty - 1] + " Max Hp";
                     } else {
                         name = "AP Item"; // Respecting short item name by storing the variable string in the description
-                        description = shopItemNames[shopItemsAux[i] - originalShopItems[0][0]];
+                        // Get the replced item's id, then subtract it by id of the first shop item to get the index
+                        description = shopItemNames[originalShopItems[currentShopLocation][i] - originalShopItems[0][0]];
                     }
 
                     bytes = Encoding.ASCII.GetBytes(name);
@@ -2239,7 +2237,7 @@ namespace LiveSplit.UI.Components
             if (Convert.ToInt32(slotData["deathlink"]) == 1) {
                 deathLink = apSession.CreateDeathLinkService();
                 deathLink.OnDeathLinkReceived += (deathLinkObject) => {
-                    gameProc.WriteValue(currentHealthPointer, 0);
+                    gameProc.WriteValue<double>(currentHealthPointer, 0);
                 };
             }
 
@@ -2294,6 +2292,7 @@ namespace LiveSplit.UI.Components
 
         /*
          * Setup the memory watcher to detect a boss kill
+         * TODO: Test this in 1.07, since i had to guess the cutscene pointer
          */
         private void SetupFinalBossKillEvent() {
             // Setup the memory watcher to check the game's memory every 10 milliseconds 
@@ -2335,7 +2334,6 @@ namespace LiveSplit.UI.Components
         private void SendMessage(string message) {
             Event(message);
             RandomizerLabel.Text = message;
-            //MessageBox.Show(message);
         }
         #endregion
     }

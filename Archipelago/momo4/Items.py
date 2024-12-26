@@ -48,7 +48,7 @@ item_key: Dict[str, ItemData] = {
     'Torn Branch': ItemData(26),
     'Monastery Key': ItemData(27, progression=True),
     'Clarity Shard': ItemData(31),
-    'Dirty Shroom': ItemData(32, progression=True),
+    'Dirty Shroom': ItemData(32, progression=True, quantity=0), # Excluded from randomization due to bug
     'Ivory Bug': ItemData(34, quantity=20, progression=True), # Any item that locks a location must be progression
     'Violet Sprite': ItemData(35),
     'Soft Tissue': ItemData(36, progression=True),

@@ -65,16 +65,16 @@ Momodora 4 - Reverie Under the Moonlight:
     # 'Any%' - You must defeat the Queen of Karst Castle
     # 'True Ending' - You must get game's True Ending
     # '100%' - You have to accomplish everything required to 100% the game
-    any: 50
+    'any': 50
     'true': 0
     '100': 0
 
   fast_kill:
     # If this is enabled, any damage taken will instantly kill you, regardless of hp.
     #     Can be on/off all the time or else only enabled during boss fights.
-    never: 50
-    boss: 0
-    always: 0
+    'never': 50
+    'boss': 0
+    'always': 0
 
   bugs:
     # If this is enabled, Ivory Bug locations will be included as checks.
@@ -89,6 +89,11 @@ Momodora 4 - Reverie Under the Moonlight:
   hard_mode:
     # Makes item logic less strict. You will have to do speedrun tech to progress.
     #     Specifically, no-hit boss drops and garden key skip are in logic.
+    'false': 50
+    'true': 0
+
+  deathlink:
+    # If enabled, dying will kill all other deathlink players, and vice versa.
     'false': 50
     'true': 0
 

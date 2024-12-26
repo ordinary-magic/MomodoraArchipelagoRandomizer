@@ -10,9 +10,10 @@
  First, make sure that you have a LiveSplit installation http://livesplit.org/downloads/.
  
  1. Download the "MomodoraRandomizer.dll" from releases. ("Releases" link over there --->)
- 2. Navigate to your LiveSplit install, and add all three .dll files into <LiveSplitDir>/Components
- 3. Have the server host add "momo4.apworld" to the "Custom Worlds" folder.
- 4. Launch LiveSplit and Edit Layout, add the Momodora Randomizer component from the "Other" category
+ 2. Navigate to your LiveSplit install, and add all three .dll files into LiveSplitDir/Components
+ 3. Have the server host add "momo4.apworld" to the "Custom Worlds" folder (or double-click it).
+ 4. Launch LiveSplit and Edit Layout, add the Momodora Randomizer component from the "Other" category.
+ 5. Edit the layout settings to add your Archipelago Sever information.
 ![image](https://user-images.githubusercontent.com/26115597/154794577-4dd8d8fb-a589-4a48-b257-a73940f76956.png)
 
  ## How to use
@@ -30,11 +31,14 @@ In the settings you can toggle whether Ivory Bugs and Vitality Fragments are inc
  Shop items and rewards from NPC's (giving the Dirty Shroom to the imp, Ivory Bugs to the bunny and Hazel Badge to Eri) are all randomized.
  Arsonist boss item is not randomized.
 
- ## How to build the repo
+ ## How to build the livesplit client:
  You don't actually need visual studio (tho it might be easier), but you do need [visual studio build tools](https://visualstudio.microsoft.com/downloads/) from 2019 or later.
  You need [.NETFramework Version 4.6.1] (https://dotnet.microsoft.com/en-us/download/dotnet-framework/net461)
- To build it: run the build.ps1 script (in powershell)
- The build will create a "MomodoraRandomizer.dll" and "momo4.apworld" file in the build directory, and copy all relevant dlls there as well.
+ 
+ Run the build.ps1 script (in powershell), which will create a "MomodoraRandomizer.dll" file in the build directory, and copy all relevant dlls.
+
+ ## How to build the archipelago multiworld:
+Run "Archipelago/build.py" which will package the multiworld and put it in the build directory.
  
  ## Credits
  The original randomizer published by [DreamFox](https://github.com/axelkarlsson/MomodoraRandomizer) that i used as the basis for this.
