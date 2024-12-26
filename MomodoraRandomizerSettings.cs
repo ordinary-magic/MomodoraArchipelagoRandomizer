@@ -7,13 +7,6 @@ namespace LiveSplit.UI.Components
 {
     partial class MomodoraRandomizerSettings : UserControl
     {
-
-        public bool VitalityFragmentsEnabled { get; set; }
-        public bool IvoryBugsEnabled { get; set; }
-        public bool HardModeEnabled { get; set; }
-        public bool showHardWarning { get; set; }
-        public bool RandomSeed { get; set; }
-
         public Color TextColor { get; set; }
         public Color OutlineColor { get; set; }
         public Color ShadowColor { get; set; }
@@ -38,11 +31,6 @@ namespace LiveSplit.UI.Components
         public MomodoraRandomizerSettings()
         {
             InitializeComponent();
-            VitalityFragmentsEnabled = true;
-            IvoryBugsEnabled = true;
-            HardModeEnabled = false;
-            showHardWarning = true;
-            RandomSeed = true;
             TextFont = new Font("Segoe UI", 13, FontStyle.Regular, GraphicsUnit.Pixel);
             OverrideTextFont = false;
             TextColor = Color.FromArgb(255, 255, 255, 255);
@@ -55,10 +43,6 @@ namespace LiveSplit.UI.Components
             logEnabled = false;
             showLogWarning = true;
 
-            chkVitality.DataBindings.Add("Checked", this, "VitalityFragmentsEnabled", false, DataSourceUpdateMode.OnPropertyChanged);
-            chkIvoryBugs.DataBindings.Add("Checked", this, "IvoryBugsEnabled", false, DataSourceUpdateMode.OnPropertyChanged);
-            chkHard.DataBindings.Add("Checked", this, "HardModeEnabled", false, DataSourceUpdateMode.OnPropertyChanged);
-            chkRandom.DataBindings.Add("Checked", this, "RandomSeed", false, DataSourceUpdateMode.OnPropertyChanged);
             chkFont.DataBindings.Add("Checked", this, "OverrideTextFont", false, DataSourceUpdateMode.OnPropertyChanged);
             lblFont.DataBindings.Add("Text", this, "TextFontString", false, DataSourceUpdateMode.OnPropertyChanged);
             chkColor.DataBindings.Add("Checked", this, "OverrideTextColor", false, DataSourceUpdateMode.OnPropertyChanged);
@@ -75,7 +59,6 @@ namespace LiveSplit.UI.Components
         {
             chkColor_CheckedChanged(null, null);
             chkFont_CheckedChanged(null, null);
-            UseRandomSeed_CheckedChanged(null, null);
         }
 
         private void chkColor_CheckedChanged(object sender, EventArgs e)
@@ -94,6 +77,23 @@ namespace LiveSplit.UI.Components
             btnColor2.DataBindings.Clear();
             btnColor2.DataBindings.Add("BackColor", this, btnColor1.Visible ? "BackgroundColor2" : "BackgroundColor", false, DataSourceUpdateMode.OnPropertyChanged);
             GradientString = cmbGradientType.SelectedItem.ToString();
+        }
+
+        // Archipelago Settings
+        public string GetServerAddress(){
+            return textUrl.Text;
+        }
+
+        public int GetServerPort(){
+            return Convert.ToInt32(Math.Round(numberPort.Value, 0));
+        }
+
+        public string GetSlot() {
+            return textSlot.Text;
+        }
+        
+        public string GetServerPassword() {
+            return textPassword.Text;
         }
 
         public void SetSettings(XmlNode settings)
@@ -117,11 +117,6 @@ namespace LiveSplit.UI.Components
                 OverrideTextFont = false;
             }
 
-            VitalityFragmentsEnabled = SettingsHelper.ParseBool(element["VitalityFragmentsEnabled"], true);
-            IvoryBugsEnabled = SettingsHelper.ParseBool(element["IvoryBugsEnabled"], true);
-            HardModeEnabled = SettingsHelper.ParseBool(element["HardModeEnabled"], false);
-            showHardWarning = SettingsHelper.ParseBool(element["showHardWarning"], true);
-            RandomSeed = SettingsHelper.ParseBool(element["RandomSeed"], true);
             TextColor = SettingsHelper.ParseColor(element["TextColor"], Color.FromArgb(255, 255, 255, 255));
             OutlineColor = SettingsHelper.ParseColor(element["OutlineColor"], Color.FromArgb(255, 255, 255, 255));
             ShadowColor = SettingsHelper.ParseColor(element["ShadowColor"], Color.FromArgb(0, 255, 255, 255));
@@ -129,19 +124,17 @@ namespace LiveSplit.UI.Components
             BackgroundColor = SettingsHelper.ParseColor(element["BackgroundColor"], Color.FromArgb(0, 0, 0, 0));
             BackgroundColor2 = SettingsHelper.ParseColor(element["BackgroundColor2"], Color.FromArgb(0, 0, 0, 0));
             GradientString = SettingsHelper.ParseString(element["BackgroundGradient"], GradientType.Plain.ToString());
-            this.textSeed.Text = SettingsHelper.ParseString(element["textSeed"], "");
             logEnabled = SettingsHelper.ParseBool(element["logEnabled"], false);
             showLogWarning = SettingsHelper.ParseBool(element["showLogWarning"], true);
+            textUrl.Text = SettingsHelper.ParseString(element["url"], "");
+            numberPort.Value = SettingsHelper.ParseInt(element["port"], 0);
+            textSlot.Text = SettingsHelper.ParseString(element["slot"], "");
+            textPassword.Text = SettingsHelper.ParseString(element["password"], "");
         }
 
         public XmlNode GetSettings(XmlDocument document)
         {
             var parent = document.CreateElement("Settings");
-            SettingsHelper.CreateSetting(document, parent, "VitalityFragmentsEnabled", VitalityFragmentsEnabled);
-            SettingsHelper.CreateSetting(document, parent, "IvoryBugsEnabled", IvoryBugsEnabled);
-            SettingsHelper.CreateSetting(document, parent, "HardModeEnabled", HardModeEnabled);
-            SettingsHelper.CreateSetting(document, parent, "showHardWarning", showHardWarning);
-            SettingsHelper.CreateSetting(document, parent, "RandomSeed", RandomSeed);
             SettingsHelper.CreateSetting(document, parent, "OverrideTextFont", OverrideTextFont);
             SettingsHelper.CreateSetting(document, parent, "OverrideTextColor", OverrideTextColor);
             SettingsHelper.CreateSetting(document, parent, "TextFont", TextFont);
@@ -151,9 +144,12 @@ namespace LiveSplit.UI.Components
             SettingsHelper.CreateSetting(document, parent, "BackgroundColor", BackgroundColor);
             SettingsHelper.CreateSetting(document, parent, "BackgroundColor2", BackgroundColor2);
             SettingsHelper.CreateSetting(document, parent, "BackgroundGradient", BackgroundGradient);
-            SettingsHelper.CreateSetting(document, parent, "textSeed", this.textSeed.Text);
             SettingsHelper.CreateSetting(document, parent, "logEnabled", logEnabled);
             SettingsHelper.CreateSetting(document, parent, "showLogWarning", showLogWarning);
+            SettingsHelper.CreateSetting(document, parent, "url", textUrl.Text);
+            SettingsHelper.CreateSetting(document, parent, "port", numberPort.Value);
+            SettingsHelper.CreateSetting(document, parent, "slot", textSlot.Text);
+            SettingsHelper.CreateSetting(document, parent, "password", textPassword.Text);
             return parent;
         }
 
@@ -170,46 +166,6 @@ namespace LiveSplit.UI.Components
             SettingsHelper.ColorButtonClick((Button)sender, this);
         }
 
-        private void UseRandomSeed_CheckedChanged(object sender, EventArgs e)
-        {
-            if (!chkRandom.Checked)
-            {
-                textSeed.Enabled = true;
-            }
-
-            else
-            {
-                textSeed.Enabled = false;
-            }
-        }
-
-        public void seed_set(int seed)
-        {
-            this.textSeed.Text = seed.ToString();
-        }
-
-        public string seed_get()
-        {
-            return this.textSeed.Text;
-        }
-
-        private void btnSeed_Click(object sender, EventArgs e)
-        {
-            Random random = new Random();
-            seed_set(random.Next());
-        }
-
-        private void chkHard_CheckedChanged(object sender, EventArgs e)
-        {
-            if (chkHard.Checked && showHardWarning)
-            {
-                System.Windows.Forms.MessageBox.Show(
-                                "Key Items can drop from boss fights." +
-                                "\n\nTip: you can enter Whiteleaf Memorial Park through Cinder Chambers using Backman Patch.");
-                showHardWarning = false;
-            }
-        }
-
         private void chkLog_CheckedChanged(object sender, EventArgs e)
         {
             if (chkLog.Checked && showLogWarning)
@@ -220,14 +176,6 @@ namespace LiveSplit.UI.Components
                         " the name MomodoraRandomizer.log. Each subsequent run will overwrite this file.\n" +
                         "This file will contain important events that occur during a run but are only useful for debugging purposes.");
                 showLogWarning = false;
-            }
-        }
-
-        private void btnClipboard_Click(object sender, EventArgs e)
-        {
-            if(textSeed.TextLength > 0)
-            {
-                Clipboard.SetText(seed_get());
             }
         }
     }

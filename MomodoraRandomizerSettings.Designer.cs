@@ -29,18 +29,17 @@ namespace LiveSplit.UI.Components
         /// </summary>
         private void InitializeComponent()
         {
-            this.btnSeed = new System.Windows.Forms.Button();
-            this.chkRandom = new System.Windows.Forms.CheckBox();
             this.chkLog = new System.Windows.Forms.CheckBox();
-            this.chkIvoryBugs = new System.Windows.Forms.CheckBox();
-            this.chkVitality = new System.Windows.Forms.CheckBox();
-            this.textSeed = new System.Windows.Forms.TextBox();
-            this.chkHard = new System.Windows.Forms.CheckBox();
-            this.groupBoxSeed = new System.Windows.Forms.GroupBox();
+            this.textUrl = new System.Windows.Forms.TextBox();
+            this.numberPort = new System.Windows.Forms.NumericUpDown();
+            this.textSlot = new System.Windows.Forms.TextBox();
+            this.textPassword = new System.Windows.Forms.TextBox();
+            this.labela1 = new System.Windows.Forms.Label();
+            this.labela2 = new System.Windows.Forms.Label();
+            this.labela3 = new System.Windows.Forms.Label();
+            this.labela4 = new System.Windows.Forms.Label();
+            this.groupBoxArchipelago = new System.Windows.Forms.GroupBox();
             this.tableLayoutPanel5 = new System.Windows.Forms.TableLayoutPanel();
-            this.btnClipboard = new System.Windows.Forms.Button();
-            this.groupBoxOptions = new System.Windows.Forms.GroupBox();
-            this.tableLayoutPanel3 = new System.Windows.Forms.TableLayoutPanel();
             this.groupBoxFont = new System.Windows.Forms.GroupBox();
             this.tableLayoutPanel6 = new System.Windows.Forms.TableLayoutPanel();
             this.lblFont = new System.Windows.Forms.Label();
@@ -64,10 +63,8 @@ namespace LiveSplit.UI.Components
             this.cmbGradientType = new System.Windows.Forms.ComboBox();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.tableLayoutPanel7 = new System.Windows.Forms.TableLayoutPanel();
-            this.groupBoxSeed.SuspendLayout();
+            this.groupBoxArchipelago.SuspendLayout();
             this.tableLayoutPanel5.SuspendLayout();
-            this.groupBoxOptions.SuspendLayout();
-            this.tableLayoutPanel3.SuspendLayout();
             this.groupBoxFont.SuspendLayout();
             this.tableLayoutPanel6.SuspendLayout();
             this.groupBoxColor.SuspendLayout();
@@ -77,27 +74,6 @@ namespace LiveSplit.UI.Components
             this.groupBox1.SuspendLayout();
             this.tableLayoutPanel7.SuspendLayout();
             this.SuspendLayout();
-            // 
-            // btnSeed
-            // 
-            this.btnSeed.Location = new System.Drawing.Point(165, 28);
-            this.btnSeed.Name = "btnSeed";
-            this.btnSeed.Size = new System.Drawing.Size(88, 24);
-            this.btnSeed.TabIndex = 0;
-            this.btnSeed.Text = "Generate seed";
-            this.btnSeed.UseVisualStyleBackColor = true;
-            this.btnSeed.Click += new System.EventHandler(this.btnSeed_Click);
-            // 
-            // chkRandom
-            // 
-            this.chkRandom.AutoSize = true;
-            this.chkRandom.Location = new System.Drawing.Point(3, 3);
-            this.chkRandom.Name = "chkRandom";
-            this.chkRandom.Size = new System.Drawing.Size(111, 17);
-            this.chkRandom.TabIndex = 1;
-            this.chkRandom.Text = "Use random Seed";
-            this.chkRandom.UseVisualStyleBackColor = true;
-            this.chkRandom.CheckedChanged += new System.EventHandler(this.UseRandomSeed_CheckedChanged);
             // 
             // chkLog
             // 
@@ -109,69 +85,121 @@ namespace LiveSplit.UI.Components
             this.chkLog.Text = "Log game events";
             this.chkLog.UseVisualStyleBackColor = true;
             this.chkLog.CheckedChanged += new System.EventHandler(this.chkLog_CheckedChanged);
+            this.textPassword.TabIndex = 46;
             // 
-            // chkIvoryBugs
+            // labela1
             // 
-            this.chkIvoryBugs.AutoSize = true;
-            this.chkIvoryBugs.Location = new System.Drawing.Point(3, 27);
-            this.chkIvoryBugs.Name = "chkIvoryBugs";
-            this.chkIvoryBugs.Size = new System.Drawing.Size(114, 17);
-            this.chkIvoryBugs.TabIndex = 4;
-            this.chkIvoryBugs.Text = "Include Ivory Bugs";
-            this.chkIvoryBugs.UseVisualStyleBackColor = true;
+            this.labela1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.labela1.AutoSize = true;
+            this.labela1.Location = new System.Drawing.Point(3, 26);
+            this.labela1.Name = "labela1";
+            this.labela1.Size = new System.Drawing.Size(75, 20);
+            this.labela1.TabIndex = 47;
+            this.labela1.Text = "Server Url:";
+            //
+            // texUrl
             // 
-            // chkVitality
+            this.textUrl.AllowDrop = true;
+            this.textUrl.Enabled = true;
+            this.textUrl.Location = new System.Drawing.Point(75, 23);
+            this.textUrl.Name = "textUrl";
+            this.textUrl.Size = new System.Drawing.Size(225, 20);
+            this.textUrl.TabIndex = 48;
+            this.textUrl.Text = "localhost";
             // 
-            this.chkVitality.AutoSize = true;
-            this.chkVitality.Location = new System.Drawing.Point(3, 3);
-            this.chkVitality.Name = "chkVitality";
-            this.chkVitality.Size = new System.Drawing.Size(146, 17);
-            this.chkVitality.TabIndex = 5;
-            this.chkVitality.Text = "Include Vitality Fragments";
-            this.chkVitality.UseVisualStyleBackColor = true;
+            // labela2
             // 
-            // textSeed
+            this.labela2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.labela2.AutoSize = true;
+            this.labela2.Location = new System.Drawing.Point(313, 26);
+            this.labela2.Name = "labela2";
+            this.labela2.Size = new System.Drawing.Size(50, 20);
+            this.labela2.TabIndex = 49;
+            this.labela2.Text = "Port:";
+            //
+            // numberPort
             // 
-            this.textSeed.AllowDrop = true;
-            this.textSeed.Enabled = false;
-            this.textSeed.Location = new System.Drawing.Point(3, 28);
-            this.textSeed.Name = "textSeed";
-            this.textSeed.Size = new System.Drawing.Size(152, 20);
-            this.textSeed.TabIndex = 44;
+            this.numberPort.AllowDrop = true;
+            this.numberPort.Enabled = true;
+            this.numberPort.Location = new System.Drawing.Point(348, 23);
+            this.numberPort.Name = "numberPort";
+            this.numberPort.Size = new System.Drawing.Size(50, 20);
+            this.numberPort.TabIndex = 50;
+            this.numberPort.Maximum = 65535;
+            this.numberPort.Minimum = 0;
+            this.numberPort.Value = 38281;
             // 
-            // chkHard
+            // labela3
             // 
-            this.chkHard.AutoSize = true;
-            this.chkHard.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.chkHard.ForeColor = System.Drawing.Color.DarkRed;
-            this.chkHard.Location = new System.Drawing.Point(220, 3);
-            this.chkHard.Name = "chkHard";
-            this.chkHard.Size = new System.Drawing.Size(109, 18);
-            this.chkHard.TabIndex = 45;
-            this.chkHard.Text = "HARD MODE";
-            this.chkHard.UseVisualStyleBackColor = true;
-            this.chkHard.Click += new System.EventHandler(this.chkHard_CheckedChanged);
+            this.labela3.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.labela3.AutoSize = true;
+            this.labela3.Location = new System.Drawing.Point(3, 54);
+            this.labela3.Name = "labela3";
+            this.labela3.Size = new System.Drawing.Size(50, 20);
+            this.labela3.TabIndex = 51;
+            this.labela3.Text = "Slot:";
+            //
+            // textSlot
+            // 
+            this.textSlot.AllowDrop = true;
+            this.textSlot.Enabled = true;
+            this.textSlot.Location = new System.Drawing.Point(33, 51);
+            this.textSlot.Name = "textSlot";
+            this.textSlot.Size = new System.Drawing.Size(100, 20);
+            this.textSlot.TabIndex = 52;
+            // 
+            // labela4
+            // 
+            this.labela4.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.labela4.AutoSize = true;
+            this.labela4.Location = new System.Drawing.Point(156, 54);
+            this.labela4.Name = "labela4";
+            this.labela4.Size = new System.Drawing.Size(75, 26);
+            this.labela4.TabIndex = 53;
+            this.labela4.Text = "Password:";
+            //
+            // textPassword
+            // 
+            this.textPassword.AllowDrop = true;
+            this.textPassword.Enabled = true;
+            this.textPassword.Location = new System.Drawing.Point(216, 51);
+            this.textPassword.Name = "textPassword";
+            this.textPassword.Size = new System.Drawing.Size(150, 20);
+            this.textPassword.TabIndex = 54;
             // 
             // groupBoxSeed
             // 
-            this.groupBoxSeed.Controls.Add(this.tableLayoutPanel5);
-            this.groupBoxSeed.Location = new System.Drawing.Point(3, 3);
-            this.groupBoxSeed.Name = "groupBoxSeed";
-            this.groupBoxSeed.Size = new System.Drawing.Size(460, 82);
-            this.groupBoxSeed.TabIndex = 4;
-            this.groupBoxSeed.TabStop = false;
-            this.groupBoxSeed.Text = "Seed";
+            //this.groupBoxArchipelago.Controls.Add(this.tableLayoutPanel5);
+            this.groupBoxArchipelago.Controls.Add(this.labela1);
+            this.groupBoxArchipelago.Controls.Add(this.textUrl);
+            this.groupBoxArchipelago.Controls.Add(this.labela2);
+            this.groupBoxArchipelago.Controls.Add(this.numberPort);
+            this.groupBoxArchipelago.Controls.Add(this.labela3);
+            this.groupBoxArchipelago.Controls.Add(this.textSlot);
+            this.groupBoxArchipelago.Controls.Add(this.labela4);
+            this.groupBoxArchipelago.Controls.Add(this.textPassword);
+            this.groupBoxArchipelago.Location = new System.Drawing.Point(3, 3);
+            this.groupBoxArchipelago.Name = "groupBoxArchipelago";
+            this.groupBoxArchipelago.Size = new System.Drawing.Size(460, 82);
+            this.groupBoxArchipelago.TabIndex = 4;
+            this.groupBoxArchipelago.TabStop = false;
+            this.groupBoxArchipelago.Text = "Archipelago";
+            /*
             // 
             // tableLayoutPanel5
             // 
-            this.tableLayoutPanel5.ColumnCount = 3;
+            this.tableLayoutPanel5.ColumnCount = 4;
             this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 95F));
             this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 191F));
-            this.tableLayoutPanel5.Controls.Add(this.textSeed, 0, 1);
-            this.tableLayoutPanel5.Controls.Add(this.btnSeed, 1, 1);
-            this.tableLayoutPanel5.Controls.Add(this.btnClipboard, 2, 1);
-            this.tableLayoutPanel5.Controls.Add(this.chkRandom, 0, 0);
+            this.tableLayoutPanel5.Controls.Add(this.labela1, 0, 0);
+            this.tableLayoutPanel5.Controls.Add(this.textUrl, 1, 0);
+            this.tableLayoutPanel5.Controls.Add(this.labela2, 2, 0);
+            this.tableLayoutPanel5.Controls.Add(this.numberPort, 3, 0);
+            this.tableLayoutPanel5.Controls.Add(this.labela3, 0, 1);
+            this.tableLayoutPanel5.Controls.Add(this.textSlot, 1, 1);
+            this.tableLayoutPanel5.Controls.Add(this.labela4, 2, 1);
+            this.tableLayoutPanel5.Controls.Add(this.textPassword, 3, 1);
             this.tableLayoutPanel5.Location = new System.Drawing.Point(6, 19);
             this.tableLayoutPanel5.Name = "tableLayoutPanel5";
             this.tableLayoutPanel5.RowCount = 2;
@@ -180,43 +208,7 @@ namespace LiveSplit.UI.Components
             this.tableLayoutPanel5.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
             this.tableLayoutPanel5.Size = new System.Drawing.Size(448, 57);
             this.tableLayoutPanel5.TabIndex = 2;
-            // 
-            // btnClipboard
-            // 
-            this.btnClipboard.Location = new System.Drawing.Point(260, 28);
-            this.btnClipboard.Name = "btnClipboard";
-            this.btnClipboard.Size = new System.Drawing.Size(103, 24);
-            this.btnClipboard.TabIndex = 45;
-            this.btnClipboard.Text = "Copy to clipboard";
-            this.btnClipboard.UseVisualStyleBackColor = true;
-            this.btnClipboard.Click += new System.EventHandler(this.btnClipboard_Click);
-            // 
-            // groupBoxOptions
-            // 
-            this.groupBoxOptions.Controls.Add(this.tableLayoutPanel3);
-            this.groupBoxOptions.Location = new System.Drawing.Point(3, 91);
-            this.groupBoxOptions.Name = "groupBoxOptions";
-            this.groupBoxOptions.Size = new System.Drawing.Size(460, 75);
-            this.groupBoxOptions.TabIndex = 3;
-            this.groupBoxOptions.TabStop = false;
-            this.groupBoxOptions.Text = "Options";
-            // 
-            // tableLayoutPanel3
-            // 
-            this.tableLayoutPanel3.ColumnCount = 3;
-            this.tableLayoutPanel3.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 153F));
-            this.tableLayoutPanel3.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 64F));
-            this.tableLayoutPanel3.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 231F));
-            this.tableLayoutPanel3.Controls.Add(this.chkVitality, 0, 0);
-            this.tableLayoutPanel3.Controls.Add(this.chkIvoryBugs, 0, 1);
-            this.tableLayoutPanel3.Controls.Add(this.chkHard, 2, 0);
-            this.tableLayoutPanel3.Location = new System.Drawing.Point(6, 19);
-            this.tableLayoutPanel3.Name = "tableLayoutPanel3";
-            this.tableLayoutPanel3.RowCount = 2;
-            this.tableLayoutPanel3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 24F));
-            this.tableLayoutPanel3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 25F));
-            this.tableLayoutPanel3.Size = new System.Drawing.Size(448, 48);
-            this.tableLayoutPanel3.TabIndex = 2;
+            */
             // 
             // groupBoxFont
             // 
@@ -409,9 +401,8 @@ namespace LiveSplit.UI.Components
             this.tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 77.80374F));
             this.tableLayoutPanel2.Controls.Add(this.groupBox1, 0, 5);
             this.tableLayoutPanel2.Controls.Add(this.groupBoxColor, 0, 4);
-            this.tableLayoutPanel2.Controls.Add(this.groupBoxSeed, 0, 0);
+            this.tableLayoutPanel2.Controls.Add(this.groupBoxArchipelago, 0, 0);
             this.tableLayoutPanel2.Controls.Add(this.groupBoxFont, 0, 3);
-            this.tableLayoutPanel2.Controls.Add(this.groupBoxOptions, 0, 1);
             this.tableLayoutPanel2.Controls.Add(this.tableLayoutPanel4, 0, 2);
             this.tableLayoutPanel2.Location = new System.Drawing.Point(0, 0);
             this.tableLayoutPanel2.Name = "tableLayoutPanel2";
@@ -523,12 +514,9 @@ namespace LiveSplit.UI.Components
             this.Name = "MomodoraRandomizerSettings";
             this.Size = new System.Drawing.Size(476, 425);
             this.Load += new System.EventHandler(this.MomodoraRandomizerSettings_Load);
-            this.groupBoxSeed.ResumeLayout(false);
+            this.groupBoxArchipelago.ResumeLayout(false);
             this.tableLayoutPanel5.ResumeLayout(false);
             this.tableLayoutPanel5.PerformLayout();
-            this.groupBoxOptions.ResumeLayout(false);
-            this.tableLayoutPanel3.ResumeLayout(false);
-            this.tableLayoutPanel3.PerformLayout();
             this.groupBoxFont.ResumeLayout(false);
             this.tableLayoutPanel6.ResumeLayout(false);
             this.tableLayoutPanel6.PerformLayout();
@@ -547,11 +535,8 @@ namespace LiveSplit.UI.Components
 
         #endregion
 
-        private System.Windows.Forms.Button btnSeed;
-        private System.Windows.Forms.GroupBox groupBoxSeed;
+        private System.Windows.Forms.GroupBox groupBoxArchipelago;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel5;
-        private System.Windows.Forms.GroupBox groupBoxOptions;
-        private System.Windows.Forms.TableLayoutPanel tableLayoutPanel3;
         private System.Windows.Forms.GroupBox groupBoxFont;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel6;
         private System.Windows.Forms.Label lblFont;
@@ -569,15 +554,17 @@ namespace LiveSplit.UI.Components
         private System.Windows.Forms.Button btnColor1;
         private System.Windows.Forms.Button btnColor2;
         private System.Windows.Forms.ComboBox cmbGradientType;
-        public System.Windows.Forms.CheckBox chkIvoryBugs;
-        public System.Windows.Forms.CheckBox chkVitality;
-        public System.Windows.Forms.CheckBox chkHard;
-        public System.Windows.Forms.CheckBox chkRandom;
         private System.Windows.Forms.CheckBox chkLog;
-        private System.Windows.Forms.TextBox textSeed;
+        private System.Windows.Forms.TextBox textUrl;
+        private System.Windows.Forms.NumericUpDown numberPort;
+        private System.Windows.Forms.TextBox textSlot;
+        private System.Windows.Forms.Label labela1;
+        private System.Windows.Forms.Label labela2;
+        private System.Windows.Forms.Label labela3;
+        private System.Windows.Forms.Label labela4;
+        private System.Windows.Forms.TextBox textPassword;
         private System.Windows.Forms.Button btnShadowColor;
         private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.Button btnClipboard;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Button btnOutlineColor;
         private System.Windows.Forms.GroupBox groupBox1;

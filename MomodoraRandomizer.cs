@@ -4,13 +4,17 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Xml;
 using System.Windows.Forms;
 using LiveSplit.ComponentUtil;
 using LiveSplit.Model;
 using System.Drawing.Drawing2D;
 using System.IO;
+using Archipelago.MultiClient.Net;
+using Archipelago.MultiClient.Net.BounceFeatures.DeathLink;
+using Archipelago.MultiClient.Net.Enums;
+using Archipelago.MultiClient.Net.Models;
+using System.Threading.Tasks;
 
 namespace LiveSplit.UI.Components
 {
@@ -63,7 +67,10 @@ namespace LiveSplit.UI.Components
             FragmentBowQuick = 51,
             FragmentDash = 52,
             FragmentWarp = 53,
-            VitalityFragment = 54
+            VitalityFragment = 54,
+            // The following are flages used by the randomizer
+            ArchipelagoItem = 254,
+            None = 255 // Placeholder item type
         };
         public enum shops : int
         {
@@ -84,21 +91,14 @@ namespace LiveSplit.UI.Components
 
         private SimpleLabel RandomizerLabel;
         private Process gameProc = null;
-        private Random randomGenerator = null;
-        private int seed = 0;
         private double gameVersion;
         private MomodoraRandomizerSettings settingsControl;
         public LiveSplitState state;
+        private ArchipelagoSession apSession;
+        private DeathLinkService deathLink;
 
         #region Randomizer logic fields
         private MemoryWatcherList randoSourceWatchers;
-        private MemoryWatcherList randoItemStringWatchers;
-        private List<int> bannedSources;
-        private List<int> usedSources;
-        private List<int> possibleSources;
-        private List<int> impossibleSources;
-        private List<int> placedItems;
-        private List<List<int>> requirementLists;
 
         //                                         CatSphere, Crest, Garden, Cinder, Mona, Haze, Soft, Dirty, Sealed Wind,Bugs
         private bool[,] requirementMatrix = new bool[9,10];
@@ -275,15 +275,14 @@ namespace LiveSplit.UI.Components
             [81] = new int[] { 163 },
             [82] = new int[] { 163 },
         };
+        private readonly List<int> bossRoomLevelIDList = new List<int>(){
+            53, 73, 141, 192, 153, 104, 97, 212, 232
+        };
         #endregion
 
         #region log	
         private List<string> Events;
         #endregion
-
-        private List<int> vitalityFragments;
-        private List<int> ivoryBugs;
-        private List<int> bossItems;
 
         #region pointers
 
@@ -342,6 +341,7 @@ namespace LiveSplit.UI.Components
         IntPtr playerXPointer;
         IntPtr playerYPointer;
         private IntPtr lubella2Pointer;
+        private IntPtr cutsceneStatePointer;
         #endregion
         #endregion
 
@@ -392,6 +392,7 @@ namespace LiveSplit.UI.Components
         List<List<int>> shopOffsets;
         List<List<bool>> hasBoughtItem;
         List<List<bool>> hasSavedBoughtItem;
+        List<string> shopItemNames;
         List<List<int>> pointerValues;
         List<string> itemNames = new List<string>
         {
@@ -414,69 +415,14 @@ namespace LiveSplit.UI.Components
             this.state = state;
             RandomizerLabel = new SimpleLabel();
             settingsControl = new MomodoraRandomizerSettings();
-            bannedSources = new List<int>();
-            usedSources = new List<int>();
-            possibleSources = new List<int>();
-            impossibleSources = new List<int>();
-            placedItems = new List<int>();
-
-            InitializeLists();
+            InitializeLists(); // Setup door and shop constants to handle manual event tracking
 
             state.OnStart += OnStart;
             state.OnReset += OnReset;
         }
-
+        
         private void InitializeLists()
         {
-            List<int> requiresCatSphere;
-            List<int> requiresCrestFragments;
-            List<int> requiresGardenKey;
-            List<int> requiresCinderKey;
-            List<int> requiresMonasteryKey;
-            List<int> requiresHazelBadge;
-            List<int> requiresDirtyShroom;
-            List<int> requiresSoftTissue;
-            List<int> requiresSealedWind;
-            List<int> requiresIvoryBugs;
-
-            requirementLists = new List<List<int>>();
-            requiresCatSphere = new List<int> { 24, 27, 39, 47, 48, 55, 63, 64, 65, 66, 67, 68, 70, 74, 75, 79 };
-            requirementLists.Add(requiresCatSphere);
-            requiresCrestFragments = new List<int> { 0, 2, 17, 18, 19, 20, 21, 22, 23, 38, 39, 47, 50, 51, 52, 53, 54, 55, 71, 72, 73, 74, 75 };
-            requirementLists.Add(requiresCrestFragments);
-            requiresGardenKey = new List<int> { 66, 67, 68, 35, 26, 25, 13 };
-            requirementLists.Add(requiresGardenKey);
-            requiresCinderKey = new List<int> { 49 };
-            requirementLists.Add(requiresCinderKey);
-            requiresMonasteryKey = new List<int> { 27, 36, 69, 70, 78 };
-            requirementLists.Add(requiresMonasteryKey);
-            requiresHazelBadge = new List<int> { 29 };
-            requirementLists.Add(requiresHazelBadge);
-            requiresSoftTissue = new List<int> { 37 };
-            requirementLists.Add(requiresSoftTissue);
-            requiresDirtyShroom = new List<int> { 30 };
-            requirementLists.Add(requiresDirtyShroom);
-            requiresSealedWind = new List<int> { 28 };
-            requirementLists.Add(requiresSealedWind);
-            requiresIvoryBugs = new List<int> { 80, 81, 82 };
-            requirementLists.Add(requiresIvoryBugs);
-            vitalityFragments = new List<int>();
-            for (int i = 39; i <= 55; i++)
-            {
-                vitalityFragments.Add(i);
-            }
-            ivoryBugs = new List<int>();
-            for (int i = 56; i <= 75; i++)
-            {
-                ivoryBugs.Add(i);
-            }
-            bossItems = new List<int>();
-            for (int i = 31; i <= 38; i++)
-            {
-                bossItems.Add(i);
-            }
-
-
             //GardenKey, MonasteryKey, CinderKey
             doorLocations = new List<List<int>>
             {
@@ -504,19 +450,16 @@ namespace LiveSplit.UI.Components
                 new List<int> { 15, 10, 16 },
                 new List<int> { 17, 18, 19 }
             };
+            shopItemNames = new List<string>();
+            foreach (int x in Enumerable.Range(8,12)){
+                shopItemNames.Add(Enum.GetName(typeof(Items), sourceIdMapping[x]));
+            }
         }
 
         private void OnReset(object sender, TimerPhase value)
         {
             randomizerRunning = false;
-            if (VerifyProcessRunning())
-            {
-                foreach (var room in shopLocations)
-                {
-                    ResetShopItems(room);
-                }
-            }
-            logResults();
+            LogResults();
         }
 
         private void OnStart(object sender, EventArgs e)
@@ -524,22 +467,6 @@ namespace LiveSplit.UI.Components
             if (VerifyProcessRunning())
             {
                 SetupVersionDifferences();
-                //If set seed ->
-                if (!settingsControl.RandomSeed)
-                {
-                    int.TryParse(settingsControl.seed_get(), out seed);
-                    randomGenerator = new Random(seed);
-                }
-                else
-                {
-                    randomGenerator = new Random();
-                    seed = randomGenerator.Next();
-                    settingsControl.seed_set(seed);
-                    randomGenerator = new Random(seed);
-                }
-
-                Debug.WriteLine("Using seed " + seed);
-
                 hasSavedChargeItem = new List<bool> { false, false, false };
                 hasChargeItem = new List<bool> { false, false, false };
                 hasSavedKey = new List<int> { 0, 0, 0 };
@@ -589,8 +516,6 @@ namespace LiveSplit.UI.Components
                 hasSavedWarp = false;
                 Events = new List<string> { };
 
-                ResetSources();
-                UpdateBannedSources();
                 Array.Clear(requirementMatrix, 0, requirementMatrix.Length);
                 randoSourceWatchers = new MemoryWatcherList();
 
@@ -601,257 +526,6 @@ namespace LiveSplit.UI.Components
                 {
                     CheckRoom(old, current);
                 };
-
-                //Key items are played in order: Cat Sphere, Crest Fragments, Garden Key, Cinder Key, Monastery Key, (Hazel Badge, Soft Tissue, Dirty Shroom, Ivory Bugs)
-                #region item placement
-                //0: Dirty Shroom - don't randomize, just update requirement matrix
-                #region dirty shroom
-                for (int i = 0; i < requirementLists.Count; i++)
-                {
-                    if (requirementLists[i].Contains(24))
-                    {
-                        for (int j = 0; j < requirementMatrix.GetLength(0); j++) requirementMatrix[7, j] = requirementMatrix[i, j];
-                        requirementMatrix[7, i] = true;
-                    }
-                }
-                #endregion
-
-                //1. Place Cat Sphere
-                #region cat sphere
-
-                int index = NextIndex((int)Items.CatSphere);
-                CreateMemoryWatcher((int)Items.CatSphere, possibleSources[index]);
-                for (int i = 0; i < requirementLists.Count; i++)
-                {
-                    if (requirementLists[i].Contains(possibleSources[index])) requirementMatrix[0,i] = true;
-                }
-                placedItems.Add(25);
-                #endregion
-
-                //2: Place Crest Fragments
-                #region crest Fragments
-                index = NextIndex((int)Items.FragmentBowPow);
-                CreateMemoryWatcher((int)Items.FragmentBowPow, possibleSources[index]);
-                for (int i = 0; i < requirementLists.Count; i++)
-                {
-                    if (requirementLists[i].Contains(possibleSources[index]))
-                    {
-                        for (int j = 0; j < requirementMatrix.GetLength(0); j++) requirementMatrix[1, j] = requirementMatrix[i, j];
-                        requirementMatrix[1, i] = true;
-                    }
-                }
-                placedItems.Add(78);
-
-                index = NextIndex((int)Items.FragmentBowPow);
-                CreateMemoryWatcher((int)Items.FragmentBowQuick, possibleSources[index]);
-                for (int i = 0; i < requirementLists.Count; i++)
-                {
-                    if (requirementLists[i].Contains(possibleSources[index]))
-                    {
-                        for (int j = 0; j < requirementMatrix.GetLength(0); j++) requirementMatrix[1, j] = requirementMatrix[i, j];
-                        requirementMatrix[1, i] = true;
-                    }
-                }
-                placedItems.Add(76);
-
-                index = NextIndex((int)Items.FragmentBowPow);
-                CreateMemoryWatcher((int)Items.FragmentDash, possibleSources[index]);
-                for (int i = 0; i < requirementLists.Count; i++)
-                {
-                    if (requirementLists[i].Contains(possibleSources[index]))
-                    {
-                        for (int j = 0; j < requirementMatrix.GetLength(0); j++) requirementMatrix[1, j] = requirementMatrix[i, j];
-                        requirementMatrix[1, i] = true;
-                    }
-                }
-                placedItems.Add(77);
-
-                index = NextIndex((int)Items.FragmentBowPow);
-                CreateMemoryWatcher((int)Items.FragmentWarp, possibleSources[index]);
-                for (int i = 0; i < requirementLists.Count; i++)
-                {
-                    if (requirementLists[i].Contains(possibleSources[index]))
-                    {
-                        for (int j = 0; j < requirementMatrix.GetLength(0); j++) requirementMatrix[1, j] = requirementMatrix[i, j];
-                        requirementMatrix[1, i] = true;
-                    }
-                }
-                placedItems.Add(79);
-                #endregion
-
-                //3: Garden Key
-                #region garden Key
-                //If hard mode: decide to place garden key or bakman patch reachable first, and then place the other one "unreachable"
-                if (settingsControl.HardModeEnabled)
-                {
-                    bool gardenKeyFirst = Convert.ToBoolean(randomGenerator.Next(0, 1));
-
-                    index = NextIndex((int)Items.GardenKey);
-                    if (gardenKeyFirst) CreateMemoryWatcher((int)Items.GardenKey, possibleSources[index]);
-                    else CreateMemoryWatcher((int)Items.BackmanPatch, possibleSources[index]);
-
-                    for (int i = 0; i < requirementLists.Count; i++)
-                    {
-                        if (requirementLists[i].Contains(possibleSources[index]))
-                        {
-                            for (int j = 0; j < requirementMatrix.GetLength(0); j++) requirementMatrix[2, j] = requirementMatrix[i, j];
-                            requirementMatrix[2, i] = true;
-                        }
-                    }
-                    AlternatePossibleSources();
-                    index = randomGenerator.Next(possibleSources.Count());
-                    usedSources.Add(possibleSources[index]);
-
-                    if (gardenKeyFirst) CreateMemoryWatcher((int)Items.BackmanPatch, possibleSources[index]);   
-                    else CreateMemoryWatcher((int)Items.GardenKey, possibleSources[index]);
-
-                    placedItems.Add(4);
-                    placedItems.Add(32);
-
-                }
-                else
-                {
-                    index = NextIndex((int)Items.GardenKey);
-                    CreateMemoryWatcher((int)Items.GardenKey, possibleSources[index]);
-                    for (int i = 0; i < requirementLists.Count; i++)
-                    {
-                        if (requirementLists[i].Contains(possibleSources[index]))
-                        {
-                            for (int j = 0; j < requirementMatrix.GetLength(0); j++) requirementMatrix[2, j] = requirementMatrix[i, j];
-                            requirementMatrix[2, i] = true;
-                        }
-                    }
-                    placedItems.Add(4);
-                }
-                #endregion
-
-                //4: Cinder Key
-                #region cinder Key
-                index = NextIndex((int)Items.CinderKey);
-                CreateMemoryWatcher((int)Items.CinderKey, possibleSources[index]);
-                for (int i = 0; i < requirementLists.Count; i++)
-                {
-                    if (requirementLists[i].Contains(possibleSources[index]))
-                    {
-                        for (int j = 0; j < requirementMatrix.GetLength(0); j++) requirementMatrix[3, j] = requirementMatrix[i, j];
-                        requirementMatrix[3, i] = true;
-                    }
-                }
-                placedItems.Add(5);
-                #endregion
-
-                //5: Monastery Key
-                #region monastery Key
-                index = NextIndex((int)Items.MonasteryKey);
-                CreateMemoryWatcher((int)Items.MonasteryKey, possibleSources[index]);
-                for (int i = 0; i < requirementLists.Count; i++)
-                {
-                    if (requirementLists[i].Contains(possibleSources[index]))
-                    {
-                        for (int j = 0; j < requirementMatrix.GetLength(0); j++) requirementMatrix[4, j] = requirementMatrix[i, j];
-                        requirementMatrix[4, i] = true;
-                    }
-                }
-                placedItems.Add(6);
-                #endregion
-
-                //6: Hazel Badge
-                #region hazel badge
-                index = NextIndex((int)Items.HazelBadge);
-                CreateMemoryWatcher((int)Items.HazelBadge, possibleSources[index]);
-                for (int i = 0; i < requirementLists.Count; i++)
-                {
-                    if (requirementLists[i].Contains(possibleSources[index]))
-                    {
-                        for (int j = 0; j < requirementMatrix.GetLength(0); j++) requirementMatrix[5, j] = requirementMatrix[i, j];
-                        requirementMatrix[5, i] = true;
-                    }
-                }
-                placedItems.Add(81);
-                #endregion
-
-                //7: Soft Tissue
-                #region soft tissue
-                index = NextIndex((int)Items.SoftTissue);
-                CreateMemoryWatcher((int)Items.SoftTissue, possibleSources[index]);
-                for (int i = 0; i < requirementLists.Count; i++)
-                {
-                    if (requirementLists[i].Contains(possibleSources[index]))
-                    {
-                        for (int j = 0; j < requirementMatrix.GetLength(0); j++) requirementMatrix[6, j] = requirementMatrix[i, j];
-                        requirementMatrix[6, i] = true;
-                    }
-                }
-                placedItems.Add(27);
-                #endregion
-
-                //8: Sealed Wind
-                #region sealed wind
-                index = NextIndex((int)Items.SealedWind);
-                CreateMemoryWatcher((int)Items.SealedWind, possibleSources[index]);
-                for (int i = 0; i < requirementLists.Count; i++)
-                {
-                    if (requirementLists[i].Contains(possibleSources[index]))
-                    {
-                        for (int j = 0; j < requirementMatrix.GetLength(0); j++) requirementMatrix[8, j] = requirementMatrix[i, j];
-                        requirementMatrix[8, i] = true;
-                    }
-                }
-                placedItems.Add(21);
-                #endregion
-
-                //9. Place Ivory Bugs
-                #region Ivory Bugs
-                if (settingsControl.IvoryBugsEnabled)
-                {
-                    Event("\nIvory Bug randomization enabled\n");
-                    for (int i = 56; i < 76; i++)
-                    {
-                        index = NextIndex((int)Items.IvoryBug);
-                        CreateMemoryWatcher((int)Items.IvoryBug, possibleSources[index]);
-                        placedItems.Add(i);
-                    }
-                }
-                else Event("\nIvory Bug randomization disabled\n");
-                #endregion
-
-                //10. Place vitality fragments
-                #region vitality fragments
-                if (settingsControl.VitalityFragmentsEnabled)
-                {
-                    Event("\nVitality Fragment randomization enabled\n");
-                    for (int i = 39; i < 56; i++)
-                    {
-                        index = NextIndex();
-                        CreateMemoryWatcher((int)Items.VitalityFragment, possibleSources[index]);
-                        placedItems.Add(i);
-                    }
-                }
-                else Event("Vitality Fragment randomization disabled\n");
-                #endregion
-
-                //11. Rest of items
-                #region rest of items
-                for (int i = 0; i < RANDOMIZER_SOURCE_AMOUNT; i++)
-                {
-                    if (!bannedSources.Contains(i) && !placedItems.Contains(i))
-                    {
-                        index = NextIndex();
-                        CreateMemoryWatcher(sourceIdMapping[i], possibleSources[index]);
-                    }
-                    
-                }
-                for(int i = 0; i < shopItems.Count(); i++)
-                {
-                    Debug.WriteLine("At shop " + Enum.GetName(typeof(shops), i));
-                    for (int j = 0; j < shopItems[i].Count(); j++)
-                    {
-                        Debug.WriteLine("\t-" + Enum.GetName(typeof(Items), shopItems[i][j]) + " generated at " +
-                                        Enum.GetName(typeof(Items), sourceIdMapping[originalShopItems[i][j]]));
-                    }
-                }
-                #endregion
-                #endregion
 
                 #region Special memory watchers
                 taintedMissiveWatcher = new MemoryWatcher<double>(taintedMissiveMaxValuePointer);
@@ -898,6 +572,7 @@ namespace LiveSplit.UI.Components
                     if (current > old)
                     {
                         LoadVariables();
+                        deathLink.SendDeathLink(new DeathLink(settingsControl.GetSlot()));
                     }
                 };
 
@@ -970,13 +645,29 @@ namespace LiveSplit.UI.Components
                         Debug.WriteLine("Respawning");
                         itemGiven = 3;
                     }
+                    
+                    // Check if HP loss should kill the player
+                    else if (current != 0 && current < old)
+                        if(ShouldFastKill())
+                            gameProc.WriteValue(currentHealthPointer, 0);
                 };
 
                 //Changed from using specialWatchers list to updating each one manually in update, makes it so you can use levelIDWatcher.current and stuff in other places if needed
 
                 #endregion
 
+                // ???
                 AddItem((int)Items.IvoryBug);
+
+                SetupArchipelago();
+
+                // Update local state to match network state
+                // Note: breaks spectacularly if you open an existing save for some reason
+                SendMessage("Synching Archipelago Item State...");
+                foreach(var item in apSession.Items.AllItemsReceived)
+                    GrantItem((int) item.ItemId, IntPtr.Zero);
+                SendMessage("Archipelago Item State Synced");
+
                 inGame = true;
                 randomizerRunning = true;
                 itemGiven = 3;
@@ -1049,151 +740,71 @@ namespace LiveSplit.UI.Components
             Event("\nFinished loading variables\n");
         }
 
-        private int NextIndex(int itemId = 0)
+        /*
+         * Function to setup a memory watcher to preform a specific location check.
+         * locationID = the id of the location to setup the watcher at
+         * newItemID = the ID of the item to give at the location
+         * itemName = the name of the item to show to the user
+         */
+        private void CreateLocationMemoryWatcherEvent(int locationID, int newItemID, string itemName)
         {
-            if (itemId != 0) UpdateImpossibleSources(itemId);
-            else impossibleSources.Clear();
-            UpdatePossibleSources();
-            int index = randomGenerator.Next(possibleSources.Count);
-            usedSources.Add(possibleSources[index]);
-            return index;
-        }
-
-        private void ResetSources()
-        {
-            bannedSources.Clear();
-            impossibleSources.Clear();
-            usedSources.Clear();
-            possibleSources.Clear();
-            placedItems.Clear();
-        }
-
-        private void CreateMemoryWatcher(int giveItemID, int newSourceAddressIndex)
-        {
-            if (8 <= newSourceAddressIndex && newSourceAddressIndex <= 19)// If item is a shop item
+            if (8 <= locationID && locationID <= 19)// If item is a shop item
             {
-                SaveShopItem(newSourceAddressIndex, giveItemID);
+                SaveShopItem(locationID, newItemID, itemName);
             }
             else
             {
-                if(sourceIdMapping.ContainsKey(newSourceAddressIndex))
-                    Debug.WriteLine("Item " + Enum.GetName(typeof(Items), giveItemID) + " generated at " + Enum.GetName(typeof(Items), sourceIdMapping[newSourceAddressIndex]));
+                // Save the mappings in the debug file
+                if(sourceIdMapping.ContainsKey(locationID))
+                    Debug.WriteLine("Item '" + itemName + "' generated at " + Enum.GetName(typeof(Items), sourceIdMapping[locationID]));
                 else
-                    Debug.WriteLine("Item " + Enum.GetName(typeof(Items), giveItemID) + " generated at position " + newSourceAddressIndex);
-                MemoryWatcher<double> temp = new MemoryWatcher<double>(potentialSourcesPointers[newSourceAddressIndex]);
-                temp.UpdateInterval = new TimeSpan(0, 0, 0, 0, 10);
-                if (potentialSourcesPointers[newSourceAddressIndex] == potentialSourcesPointers[28])
+                    Debug.WriteLine("Item '" + itemName + " generated at position " + locationID);
+                
+                // Setup the memory watcher to check the game's memory every 10 milliseconds 
+                MemoryWatcher<double> temp = new MemoryWatcher<double>(potentialSourcesPointers[locationID]) {
+                    UpdateInterval = new TimeSpan(0, 0, 0, 0, 10)
+                };
+
+                // Add the event to trigger if the item is collected
+                temp.OnChanged += (old, current) =>
                 {
-                    temp.OnChanged += (old, current) =>
+                    // current is making sure we only do this if the item is added, levelID is for ???
+                    int levelID = gameProc.ReadValue<int>(levelIDPointer);
+                    if (current == 1 && sourceToLevelMapping[locationID].Contains(levelID))
                     {
-                        int levelID = gameProc.ReadValue<int>(levelIDPointer);
-                        if (current == 1 && sourceToLevelMapping[newSourceAddressIndex].Contains(levelID))
-                        {
-                            hasBathedLeaf = true;
-                            NewItem(giveItemID,potentialSourcesPointers[newSourceAddressIndex]);
-                        }
-                    };
-                }
-                else
-                {
-                    temp.OnChanged += (old, current) =>
-                    {
-                        int levelID = gameProc.ReadValue<int>(levelIDPointer);
-                        if (current == 1 && sourceToLevelMapping[newSourceAddressIndex].Contains(levelID))
-                        {
-                            NewItem(giveItemID, potentialSourcesPointers[newSourceAddressIndex]);
-                        }
-                    };
-                }
+                        // track the spring leaf event
+                        if (locationID == 28) hasBathedLeaf = true;
+                        
+                        // Perform the item replacement
+                        ReplaceItem(newItemID, potentialSourcesPointers[locationID]);
+
+                        // Tell Archipelago that we checked a location
+                        apSession.Locations.CompleteLocationChecks(locationID);
+                    }
+                };
+
                 temp.Enabled = true;
                 randoSourceWatchers.Add(temp);
 
                 #region get item text
-                int stringIndex = sourceToStringMapping[newSourceAddressIndex];
+                int stringIndex = sourceToStringMapping[locationID];
                 //Shop items are handled elsewhere
                 if(stringIndex != -1)
                 {
+                    // On screen transitions, check for this location and swap its name in memory
                     levelIDWatcher.OnChanged += (old, current) =>
                     {
-                        if (sourceToLevelMapping[newSourceAddressIndex].Contains(current))
+                        if (sourceToLevelMapping[locationID].Contains(current))
                         {
+                            // Replace the old item name with the new one
                             SetupStringPtrs();
-                            byte[] bytes = Encoding.ASCII.GetBytes(Enum.GetName(typeof(Items), giveItemID));
+                            byte[] bytes = Encoding.ASCII.GetBytes(itemName);
                             gameProc.WriteBytes(itemGetStringPtrs[stringIndex], bytes);// Set name of placeholder to the one that will get added later
-                            gameProc.WriteValue<int>(itemGetStringPtrs[stringIndex] + bytes.Length, 0x0);// Add end of string
+                            gameProc.WriteValue(itemGetStringPtrs[stringIndex] + bytes.Length, 0x0);// Add end of string
                         }
                     };
                 }
                 #endregion
-            }
-        }
-
-        private void UpdateImpossibleSources(int itemId)
-        {
-            impossibleSources.Clear();
-            int j = 0;
-            //Key items are played in order: Cat Sphere, Crest Fragments, Garden Key, Cinder Key, Monastery Key, (Hazel Badge, Soft Tissue, Dirty Shroom, Ivory Bug) 
-            if (itemId == (int)Items.CatSphere) j = 0;
-            else if (itemId == (int)Items.FragmentBowPow) j = 1;
-            else if (itemId == (int)Items.GardenKey) j = 2;
-            else if (itemId == (int)Items.CinderKey) j = 3;
-            else if (itemId == (int)Items.MonasteryKey) j = 4;
-            else if (itemId == (int)Items.HazelBadge) j = 5;
-            else if (itemId == (int)Items.SoftTissue) j = 6;
-            else if (itemId == (int)Items.DirtyShroom) j = 7;
-            else if (itemId == (int)Items.SealedWind) j = 8;
-            else if (itemId == (int)Items.IvoryBug) j = 9;
-            for(int i = 0; i < requirementMatrix.GetLength(0); i++)
-            {
-                impossibleSources.AddRange(requirementLists[j]);
-                if (requirementMatrix[i, j]) impossibleSources.AddRange(requirementLists[i]);
-            }
-        }
-
-        private void UpdateBannedSources()
-        {
-            if (!settingsControl.VitalityFragmentsEnabled) bannedSources.AddRange(vitalityFragments);
-            if (!settingsControl.IvoryBugsEnabled) bannedSources.AddRange(ivoryBugs);
-            if (!settingsControl.HardModeEnabled) bannedSources.AddRange(bossItems);
-            //Pocket incensory and Dirty Shroom don't work all the time when randomizing
-            bannedSources.Add(34);
-            bannedSources.Add(19);
-            bannedSources.Add(24);
-            //disabled shop items for now
-            bannedSources.Add(8);
-            bannedSources.Add(9);
-            bannedSources.Add(10);
-            bannedSources.Add(11);
-            bannedSources.Add(12);
-            bannedSources.Add(13);
-            bannedSources.Add(14);
-            bannedSources.Add(15);
-            bannedSources.Add(16);
-            bannedSources.Add(17);
-            bannedSources.Add(18);
-        }
-
-        private void UpdatePossibleSources()
-        {
-            possibleSources.Clear();
-            for (int i = 0;  i < RANDOMIZER_SOURCE_AMOUNT; i++)
-            {
-                if(!bannedSources.Contains(i) && !impossibleSources.Contains(i) && !usedSources.Contains(i))
-                {
-                    possibleSources.Add(i);
-                }
-            }
-        }
-
-        private void AlternatePossibleSources()
-        {
-            possibleSources.Clear();
-            for (int i = 0; i < RANDOMIZER_SOURCE_AMOUNT; i++)
-            {
-                if (!bannedSources.Contains(i) && impossibleSources.Contains(i) && !usedSources.Contains(i))
-                {
-                    possibleSources.Add(i);
-                }
             }
         }
 
@@ -1203,12 +814,28 @@ namespace LiveSplit.UI.Components
          * id = id of item to give out
          * addr = IntPtr to source of item given out
          */
-        private bool NewItem(int id, IntPtr addr, int addCharges = 2)
+        private bool ReplaceItem(int id, IntPtr addr, int addCharges = 2)
+        {
+            SetupItemPtrs();
+            RemoveItem();
+
+            // If it's our item, give it to the player
+            if (id != (int)Items.ArchipelagoItem)
+                return GrantItem(id, addr, addCharges);
+            
+            return true;
+        }
+
+        /*
+         * Adds a new item to the players inventory (with no replacement)
+         * id = id of item to give out
+         * addr = IntPtr to source of item given out
+         */
+        private bool GrantItem(int id, IntPtr addr, int addCharges = 2)
         {
             bool res = true;
             SetupItemPtrs();
             RandomizerLabel.Text = "New item: " + Enum.GetName(typeof(Items), id);
-            RemoveItem();
             Debug.WriteLine("Giving item id: " + id);
             
             int allocatedMemory = gameProc.ReadValue<int>(IntPtr.Subtract(inventoryItemsStartPointer, 0x10));
@@ -1269,7 +896,10 @@ namespace LiveSplit.UI.Components
             AddItem((int)Items.FreshSpringLeaf);
         }
 
-        private void RemoveItem()
+        /*
+         * Remove the most recently obtained item and report which item was removed.
+         */
+        private Items RemoveItem()
         {
             UpdateItemWatchers();
 
@@ -1277,40 +907,46 @@ namespace LiveSplit.UI.Components
             {
                 Event("Removing missive\n");
                 RemoveChargeItem((int)Items.TaintedMissive, taintedMissiveWatcher.Current - taintedMissiveWatcher.Old);
+                return Items.TaintedMissive;
             }
             else if (bellflowerWatcher.Changed)
             {
                 Event("\nRemoving bellflower\n");
                 RemoveChargeItem((int)Items.Bellflower, bellflowerWatcher.Current - bellflowerWatcher.Old);
+                return Items.Bellflower;
             }
             else if (passifloraWatcher.Changed)
             {
                 Event("\nRemoving passiflora\n");
                 RemoveChargeItem((int)Items.Passiflora, passifloraWatcher.Current - passifloraWatcher.Old);
+                return Items.Passiflora;
             }
             else if (ivoryBugWatcher.Changed)
             {
                 Event("\nRemoving IB\n");
                 RemoveIvoryBug();
+                return Items.IvoryBug;
             }
             else if (crestFragmentWatcher.Changed)
             {
                 Event("\nRemoving Crest Frag\n");
-                RemoveCrestFragment();
+                return RemoveCrestFragment();
             }
             else if (vitalityFragmentWatcher.Changed)
             {
                 Event("\nRemoving Vit Frag\n");
                 RemoveVitalityFragment();
+                return Items.VitalityFragment;
             }
             else if (levelIDWatcher.Current == 83)
             {
                 Event("\nGreen leaf upgraded, do not remove stuff\n");
+                return Items.None;
             }
             else
             {
                 Event("\nRemoving last item in inventory\n");
-                RemoveLastItem();
+                return RemoveLastItem();
             }
         }
 
@@ -1393,20 +1029,28 @@ namespace LiveSplit.UI.Components
             if (id == (int)Items.CatSphere) hasCatSphere = true;
             gameProc.WriteValue<int>(totalItemsPointer, (int)totalItemAmount + 1);
             gameProc.WriteValue<double>(IntPtr.Add(inventoryItemsStartPointer, 0x10 * totalItemAmount), id);
+
+            CheckIfAllItemsDone(totalItemAmount);
         }
 
-        private void RemoveLastItem()
+        private Items RemoveLastItem()
         {
             //To remove last item, decrease total item counter by one
             SetupItemPtrs();
             var totalItemAmount = gameProc.ReadValue<int>(totalItemsPointer);
+
+            // Save the removed item's type so we can report it later.
+            Items removedItem = (Items) gameProc.ReadValue<double>(IntPtr.Add(inventoryItemsStartPointer, 0x10 * totalItemAmount));
+
             gameProc.WriteValue<int>(totalItemsPointer, (int)totalItemAmount - 1);
+            return removedItem;
         }
 
-        private void RemoveCrestFragment()
+        private Items RemoveCrestFragment()
         {
-            RemoveLastItem();
+            Items fragment = RemoveLastItem();
             CountCrestFragments();
+            return fragment;
         }
 
         private void AddCrestFragment(int id)
@@ -1684,7 +1328,8 @@ namespace LiveSplit.UI.Components
 
                 RemovePlaceholders(room);// remove all placeholders (avoid weird situations)
                 AddItem((int)placeholderId);
-                NewItem(shopItemsAux[idPos],IntPtr.Zero);
+                ReplaceItem(shopItemsAux[idPos],IntPtr.Zero);
+                apSession.Locations.CompleteLocationChecks(itemAux); // Tell Archipelago
                 AddPlaceholders(room);// re-add placeholders
                 Event("\nAt shop " + Enum.GetName(typeof(shops), currentShopLocation) + "\n");
                 foreach (var item in shopItems[currentShopLocation])
@@ -1736,7 +1381,7 @@ namespace LiveSplit.UI.Components
             }
         }
 
-        private void SaveShopItem(int origin, int swapped)
+        private void SaveShopItem(int origin, int swapped, string name)
         {
             int itemPos, listPos;
             foreach (var list in originalShopItems)
@@ -1746,6 +1391,7 @@ namespace LiveSplit.UI.Components
                     listPos = originalShopItems.IndexOf(list);
                     itemPos = list.IndexOf(origin);
                     shopItems[listPos][itemPos] = swapped;
+                    shopItemNames[origin - originalShopItems[0][0]] = name;
                 }
             }
         }
@@ -1772,17 +1418,27 @@ namespace LiveSplit.UI.Components
                 pointer = IntPtr.Add((IntPtr)new DeepPointer(shopPointer).Deref<Int32>(gameProc), 0x10 * list[i]);// Get pointer to shop item
                 gameProc.WriteValue<double>(pointer, id);// Set shop placeholder to id
 
-                // Vitality Fragment doesnt have a name or effect so we have to write to memory (trying to write as few bytes as possible)
-                if (shopItemsAux[i] == 54)
+                // Vitality Fragment & AP Items dont have a name or effect so we have to write to memory
+                if (shopItemsAux[i] == (int)Items.VitalityFragment || shopItemsAux[i] == (int)Items.ArchipelagoItem)
                 {
-                    double difficulty = gameProc.ReadValue<double>(difficultyPointer);
+                    // Determine the item name and description
+                    string name, description;
+                    if (shopItemsAux[i] == (int)Items.VitalityFragment) {    
+                        // (trying to write as few bytes as possible)                    
+                        double difficulty = gameProc.ReadValue<double>(difficultyPointer);
+                        name = "Vit. Frag.";
+                        description = "+" + healthChange[(int)difficulty - 1] + " Max Hp";
+                    } else {
+                        name = "AP Item"; // Respecting short item name by storing the variable string in the description
+                        description = shopItemNames[shopItemsAux[i] - originalShopItems[0][0]];
+                    }
 
-                    bytes = Encoding.ASCII.GetBytes("Vit. Frag.");
+                    bytes = Encoding.ASCII.GetBytes(name);
                     pointer = (IntPtr)new DeepPointer(itemInfoPointer, new int[] { ((0x60 * id) + 0x10), 0x0 }).Deref<Int32>(gameProc);// Get pointer to item name
                     gameProc.WriteBytes(pointer, bytes);// Set name of placeholder to the one that will get added later
                     gameProc.WriteValue<int>(pointer + bytes.Length, 0x0);// Add end of string
 
-                    bytes = Encoding.ASCII.GetBytes("+" + healthChange[(int)difficulty - 1] + " Max Hp");
+                    bytes = Encoding.ASCII.GetBytes(description);
                     pointer = (IntPtr)new DeepPointer(itemInfoPointer, new int[] { ((0x60 * id) + 0x20), 0x0 }).Deref<Int32>(gameProc);// Get pointer to item effect
                     gameProc.WriteBytes(pointer, bytes);// Set effect of placeholder to the one that will get added later
                     gameProc.WriteValue<int>(pointer + bytes.Length, 0x0);// Add end of string
@@ -1864,13 +1520,12 @@ namespace LiveSplit.UI.Components
             Debug.WriteLine(text.Replace("\n", ""));
         }
 
-        private void logResults()
+        private void LogResults()
         {
             if(settingsControl.logEnabled == true)
             {
                 Debug.WriteLine("Creating event log file");
                 var path = "Components/MomodoraRandomizer.log";
-                File.WriteAllText(path, "Using seed: " + seed + "\n");
                 if (File.Exists(path))
                 {
                     File.AppendAllText(path, "Running on version " + gameVersion + "\n");
@@ -2190,6 +1845,8 @@ namespace LiveSplit.UI.Components
                     lubella2Pointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0x560);
                     playerXPointer = IntPtr.Add((IntPtr)new DeepPointer(0x0253597C, new int[] { 0xC, 0xBC, 0x8, 0x4 }).Deref<int>(gameProc), 0x120);
                     playerYPointer = IntPtr.Add((IntPtr)new DeepPointer(0x0253597C, new int[] { 0xC, 0xBC, 0x8, 0x4 }).Deref<int>(gameProc), 0x130);
+
+	                cutsceneStatePointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4 }).Deref<int>(gameProc),0xAB0);
                     #endregion
                     RandomizerLabel.Text = "1.05b randomizer ready to go!";
                     break;
@@ -2321,6 +1978,8 @@ namespace LiveSplit.UI.Components
                     lubella2Pointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0x560);
                     playerXPointer = IntPtr.Add((IntPtr)new DeepPointer(0x025A2B3C, new int[] { 0xC, 0xBC, 0x8, 0x4}).Deref<int>(gameProc), 0x120);
                     playerYPointer = IntPtr.Add((IntPtr)new DeepPointer(0x025A2B3C, new int[] { 0xC, 0xBC, 0x8, 0x4 }).Deref<int>(gameProc), 0x130);
+
+	                cutsceneStatePointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4 }).Deref<int>(gameProc),0xAC0);
                     #endregion
                     RandomizerLabel.Text = "1.07 randomizer ready to go!";
                     break;
@@ -2511,5 +2170,173 @@ namespace LiveSplit.UI.Components
             }
             return false;
         }
+
+        #region Archipelago State Management
+        private Goal goalCondition;
+        private FastKill fastKill;
+
+        private enum Goal : int {
+            AnyPercent = 0,
+            TrueEnding = 1,
+            AllItems = 2
+        }
+
+        private enum FastKill : int {
+            Never = 0,
+            BossOnly = 1,
+            Always = 2
+        }
+
+        /*
+         * Setup the archipelago server
+         */
+        private void SetupArchipelago(){
+            LoginResult login = null;
+            var port = settingsControl.GetServerPort();
+            var url = settingsControl.GetServerAddress();
+
+            // Connect to the archipelago server
+            try {
+                SendMessage($"Connecting to Archipelago Server {url}:{port}...");
+                apSession = ArchipelagoSessionFactory.CreateSession(url, port);
+
+                // Login to the server
+                SendMessage($"Logging in as {settingsControl.GetSlot()}...");
+                login = apSession.TryConnectAndLogin("Momodora 4 - Reverie Under the Moonlight", settingsControl.GetSlot(), 
+                        ItemsHandlingFlags.RemoteItems, password: settingsControl.GetServerPassword());
+            } catch (Exception e) {
+                MessageBox.Show($"Could not connect to archipelago server {url}:{port}:\n" + e.Message);
+                return;
+            }
+                    
+            if (login is LoginFailure failure) {
+                MessageBox.Show($"Login Failed:\n" + string.Join("\n", failure.Errors));
+                return;
+            }
+
+            // Message logging    
+            //apSession.MessageLog.OnMessageReceived += (message) => {
+            //    Debug.WriteLine("ApMessage: " + message);
+            //};
+
+            // Handle new item from server
+            apSession.Items.ItemReceived += (receivedItemsHelper) => {
+                var item = receivedItemsHelper.DequeueItem();
+
+                // Only issue item notices for items not from our game
+                //  In theory this should be redundant with RemoteItems but in practice its not
+                if (item.Player.Slot != apSession.ConnectionInfo.Slot) {
+                    SendMessage($"Got {item.ItemName}!");
+                    GrantItem((int) item.ItemId, IntPtr.Zero);
+                }
+            };
+
+            var slotData = ((LoginSuccessful)login).SlotData;
+            goalCondition = (Goal)Convert.ToInt32(slotData["goal"]);
+            fastKill = (FastKill)Convert.ToInt32(slotData["fast_kill"]);
+
+            // Setup Deathlink if enabled
+            if (Convert.ToInt32(slotData["deathlink"]) == 1) {
+                deathLink = apSession.CreateDeathLinkService();
+                deathLink.OnDeathLinkReceived += (deathLinkObject) => {
+                    gameProc.WriteValue(currentHealthPointer, 0);
+                };
+            }
+
+            SetupFinalBossKillEvent();
+
+            // Get the locations from the server and setup our replacements
+            SendMessage("Initializing Randomizer...");
+            SetupLocations(apSession.Locations.ScoutLocationsAsync(false, apSession.Locations.AllLocations.ToArray()));
+        }
+
+        /*
+         * Async Method to process the list of item replacements reported by the archipelago server.
+         */
+        private async void SetupLocations(Task<Dictionary<long, ScoutedItemInfo>> scouterInfoTask){
+            var infoReport = await scouterInfoTask; // wait for the task to finish
+
+            foreach (var locationId in infoReport.Keys) {
+                if (locationId >= sourceIdMapping.Keys.Count)
+                    continue; // Ignore "Special" archipelago locations
+
+                // Extract the relevant info
+                var info = infoReport[locationId];
+                int newItem = (int) info.ItemId;
+                string name = info.ItemDisplayName ?? info.ItemName;
+
+                // Handle other player's items by making them an Archipelago item with a relevant name
+                if (info.Player.Slot != apSession.ConnectionInfo.Slot){
+                    newItem = (int) Items.ArchipelagoItem;
+                    name = info.Player.Name + "'s " + name;
+                }
+
+                // Setup the item replacement in the game's data.
+                CreateLocationMemoryWatcherEvent((int)locationId, newItem, name);
+            }
+
+            SendMessage("Randomization Complete!");
+        }
+
+        /*
+         * Method to check if all items have been collected for a 100% run and report it to Archipelago.
+         */
+        private void CheckIfAllItemsDone(int count) {
+            if (goalCondition != Goal.AllItems)
+                return; // Only relevant for 100% completion runs
+
+            double difficulty = gameProc.ReadValue<double>(difficultyPointer);
+            // Todo: Check if count increases for all items or just randomized ones
+            int totalItems =  new int[] {84, 82, 82, 82}[(int)difficulty];
+            if (count >= totalItems)
+                apSession.Locations.CompleteLocationChecks(100); // Complete the 100% Location
+        }
+
+        /*
+         * Setup the memory watcher to detect a boss kill
+         */
+        private void SetupFinalBossKillEvent() {
+            // Setup the memory watcher to check the game's memory every 10 milliseconds 
+            MemoryWatcher<double> temp = new MemoryWatcher<double>(cutsceneStatePointer) {
+                UpdateInterval = new TimeSpan(0, 0, 0, 0, 10)
+            };
+
+            // Add the event to trigger if the item is collected
+            temp.OnChanged += (old, current) =>
+            {
+                // Cutscene State 1000 is triggered on boss death. We check that + room id to ensure the right state.
+                int levelID = gameProc.ReadValue<int>(levelIDPointer);
+                if (current == 1000 && levelID == bossRoomLevelIDList.Last())
+                {
+                    // Make sure either we are any% or we have the green leaf
+                    if (goalCondition == Goal.AnyPercent || hasFoundGreenLeaf)
+                        // Tell Archipelago that we checked a location
+                        apSession.Locations.CompleteLocationChecks(101); // Complete the final boss location
+                }
+            };
+
+            temp.Enabled = true;
+            randoSourceWatchers.Add(temp);
+        }
+
+        /*
+         * Check if a fast kill should be performed on the player when they lose health
+         */
+        private bool ShouldFastKill() {
+            if (fastKill == FastKill.Always)
+                return true;
+            else if (fastKill == FastKill.BossOnly) {
+                int levelID = gameProc.ReadValue<int>(levelIDPointer);
+                return bossRoomLevelIDList.Contains(levelID);
+            } else
+                return false;
+        }
+
+        private void SendMessage(string message) {
+            Event(message);
+            RandomizerLabel.Text = message;
+            //MessageBox.Show(message);
+        }
+        #endregion
     }
 }
