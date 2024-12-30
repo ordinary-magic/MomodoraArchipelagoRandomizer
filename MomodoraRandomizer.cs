@@ -10,11 +10,7 @@ using LiveSplit.ComponentUtil;
 using LiveSplit.Model;
 using System.Drawing.Drawing2D;
 using System.IO;
-using Archipelago.MultiClient.Net;
 using Archipelago.MultiClient.Net.BounceFeatures.DeathLink;
-using Archipelago.MultiClient.Net.Enums;
-using Archipelago.MultiClient.Net.Models;
-using System.Threading.Tasks;
 
 namespace LiveSplit.UI.Components
 {
@@ -86,16 +82,16 @@ namespace LiveSplit.UI.Components
         //Mapping of item source to what pointer points to the string that gets displayed when you pick it up.
         //-1 means that it does not have a string attached (shop source)
         private int[] sourceToStringMapping = new int[83] { 1, 2, 1, 6, 10, 18, 8, 5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 20, 22, 1, 24, 11, 12, 1, 9, 21, 30, 31, 3, 4, 14, 19, 13, 5, 25, 23, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 27, 26, 28, 29, 15, 16, 17 };
-        const int RANDOMIZER_SOURCE_AMOUNT = 83;
+        public const int RANDOMIZER_SOURCE_AMOUNT = 83;
         const int GET_ITEM_STRING_AMNT = 32;
 
         private SimpleLabel RandomizerLabel;
         private Process gameProc = null;
         private double gameVersion;
+        private int difficulty;
         private MomodoraRandomizerSettings settingsControl;
         public LiveSplitState state;
-        private ArchipelagoSession apSession;
-        private DeathLinkService deathLink;
+        private readonly Momo4Archipelago archipelago;
 
         #region Randomizer logic fields
         private MemoryWatcherList randoSourceWatchers;
@@ -275,8 +271,11 @@ namespace LiveSplit.UI.Components
             [81] = new int[] { 163 },
             [82] = new int[] { 163 },
         };
-        private readonly List<int> bossRoomLevelIDList = new List<int>(){
-            53, 73, 141, 192, 153, 104, 97, 212, 232
+        public static readonly List<int> bossRoomLevelIDList = new List<int>(){
+            53, 73, 141, 193, 153, 104, 97, 212, 232
+        };
+        private static readonly List<int> shopPlaceholderItems = new List<int>() {
+            22, 29, 45
         };
         #endregion
 
@@ -357,7 +356,6 @@ namespace LiveSplit.UI.Components
         private MemoryWatcher<double> saveWatcher;
         private MemoryWatcher<double> inGameWatcher;
         private MemoryWatcher<double> munnyWatcher;
-        private MemoryWatcher<double> invOpenWatcher;
         private MemoryWatcher<double> convOpenWatcher;
         private MemoryWatcher<double> playerYWatcher;
         private MemoryWatcher<double> currentHealthWatcher;
@@ -415,7 +413,10 @@ namespace LiveSplit.UI.Components
             this.state = state;
             RandomizerLabel = new SimpleLabel();
             settingsControl = new MomodoraRandomizerSettings();
-            InitializeLists(); // Setup door and shop constants to handle manual event tracking
+            InitializeLists(); // Setup door and shop constants
+
+            // Create the archipelago object
+            archipelago = new Momo4Archipelago(SendMessage);
 
             state.OnStart += OnStart;
             state.OnReset += OnReset;
@@ -455,6 +456,13 @@ namespace LiveSplit.UI.Components
         private void OnReset(object sender, TimerPhase value)
         {
             randomizerRunning = false;
+            if (VerifyProcessRunning())
+            {
+                foreach (var room in shopLocations)
+                {
+                    ResetShopItems(room);
+                }
+            }
             LogResults();
         }
 
@@ -568,7 +576,7 @@ namespace LiveSplit.UI.Components
                     if (current > old)
                     {
                         LoadVariables();
-                        deathLink.SendDeathLink(new DeathLink(settingsControl.GetSlot()));
+                        archipelago.DeathLink.SendDeathLink(new DeathLink(settingsControl.GetSlot()));
                     }
                 };
 
@@ -580,15 +588,8 @@ namespace LiveSplit.UI.Components
                     if (current > old)
                     {
                         SaveVariables();
+                        archipelago.SaveItems();
                     }
-                };
-
-                invOpenWatcher = new MemoryWatcher<double>(invOpenPointer);
-                invOpenWatcher.UpdateInterval = new TimeSpan(0, 0, 0, 0, 10);
-                invOpenWatcher.Enabled = true;
-                invOpenWatcher.OnChanged += (old, current) =>
-                {
-                    InvOpen(current);
                 };
 
                 munnyWatcher = new MemoryWatcher<double>(munnyPointer);
@@ -640,30 +641,43 @@ namespace LiveSplit.UI.Components
                     {
                         Debug.WriteLine("Respawning");
                         itemGiven = 3;
+                        archipelago.ResyncArchipeligoItemsOnDeath();
                     }
-                    
+
                     // Check if HP loss should kill the player
                     else if (current != 0 && current < old)
-                        if(ShouldFastKill()){
+                        if(archipelago.ShouldFastKill(gameProc.ReadValue<int>(levelIDPointer))){
                             gameProc.WriteValue<double>(currentHealthPointer, 0);
                         }
                 };
 
-                //Changed from using specialWatchers list to updating each one manually in update, makes it so you can use levelIDWatcher.current and stuff in other places if needed
+                difficulty = (int) gameProc.ReadValue<double>(difficultyPointer);
 
                 #endregion
 
-                // ???
-                AddItem((int)Items.IvoryBug);
+                // Connect to the archipelago session
+                archipelago.ConnectArchipelago(
+                    settingsControl.GetServerAddress(),
+                    settingsControl.GetServerPort(),
+                    settingsControl.GetSlot(),
+                    settingsControl.GetServerPassword()
+                );
 
-                SetupArchipelago();
+                // Seems to be done so that the "ivory bug" key item exists if we add one.
+                // Do not do this if we already have save data for this game.
+                if (!archipelago.HasSaveData)
+                    AddItem((int)Items.IvoryBug);
 
-                // Update local state to match network state
-                // Note: breaks spectacularly if you open an existing save for some reason
-                SendMessage("Synching Archipelago Item State...");
-                foreach(var item in apSession.Items.AllItemsReceived)
-                    GrantItem((int) item.ItemId, IntPtr.Zero);
-                SendMessage("Archipelago Item State Synced");
+                // Initialize the randomizer
+                archipelago.InitializeRandomizer(
+                    item => GrantItem(item, IntPtr.Zero),
+                    () => gameProc.WriteValue<double>(currentHealthPointer, 0),
+                    CreateLocationMemoryWatcherEvent
+                );
+
+                // Setup watchers that use archipelago
+                randoSourceWatchers.Add(GetFinalBossKillWatcher());
+                randoSourceWatchers.Add(GetMeowWatcher());
 
                 inGame = true;
                 randomizerRunning = true;
@@ -774,9 +788,10 @@ namespace LiveSplit.UI.Components
                         
                         // Perform the item replacement
                         ReplaceItem(newItemID, potentialSourcesPointers[locationID]);
+                        RandomizerLabel.Text = $"Got {itemName}!";
 
                         // Tell Archipelago that we checked a location
-                        apSession.Locations.CompleteLocationChecks(locationID);
+                        archipelago.NotifyLocationChecked(locationID);
                     }
                 };
 
@@ -819,7 +834,7 @@ namespace LiveSplit.UI.Components
             // If it's our item, give it to the player
             if (id != (int)Items.ArchipelagoItem)
                 return GrantItem(id, addr, addCharges);
-            
+
             return true;
         }
 
@@ -832,7 +847,6 @@ namespace LiveSplit.UI.Components
         {
             bool res = true;
             SetupItemPtrs();
-            RandomizerLabel.Text = "New item: " + Enum.GetName(typeof(Items), id);
             Debug.WriteLine("Giving item id: " + id);
             
             int allocatedMemory = gameProc.ReadValue<int>(IntPtr.Subtract(inventoryItemsStartPointer, 0x10));
@@ -1026,8 +1040,6 @@ namespace LiveSplit.UI.Components
             if (id == (int)Items.CatSphere) hasCatSphere = true;
             gameProc.WriteValue<int>(totalItemsPointer, (int)totalItemAmount + 1);
             gameProc.WriteValue<double>(IntPtr.Add(inventoryItemsStartPointer, 0x10 * totalItemAmount), id);
-
-            CheckIfAllItemsDone(totalItemAmount);
         }
 
         private Items RemoveLastItem()
@@ -1037,7 +1049,7 @@ namespace LiveSplit.UI.Components
             var totalItemAmount = gameProc.ReadValue<int>(totalItemsPointer);
 
             // Save the removed item's type so we can report it later.
-            Items removedItem = (Items) gameProc.ReadValue<double>(IntPtr.Add(inventoryItemsStartPointer, 0x10 * totalItemAmount));
+            Items removedItem = (Items) PeekLastItem();
 
             gameProc.WriteValue<int>(totalItemsPointer, (int)totalItemAmount - 1);
             return removedItem;
@@ -1059,7 +1071,6 @@ namespace LiveSplit.UI.Components
         private void RemoveVitalityFragment()
         {
             double[] healthChange = { 0, 2, 1, 1 };
-            double difficulty = gameProc.ReadValue<double>(difficultyPointer);
             double fragments = gameProc.ReadValue<double>(vitalityFragmentCountPointer);
             double health = gameProc.ReadValue<double>(maxHealthPointer);
             gameProc.WriteValue<double>(vitalityFragmentCountPointer, fragments - 1);
@@ -1068,7 +1079,6 @@ namespace LiveSplit.UI.Components
 
         private void AddVitalityFragment()
         {
-            double difficulty = gameProc.ReadValue<double>(difficultyPointer);
             double fragments = gameProc.ReadValue<double>(vitalityFragmentCountPointer);
             double health = gameProc.ReadValue<double>(maxHealthPointer);
             gameProc.WriteValue<double>(vitalityFragmentCountPointer, fragments + 1);
@@ -1252,6 +1262,7 @@ namespace LiveSplit.UI.Components
             #endregion
         }
 
+        // Note: Might be redudnant with the LevelID shop check
         private void InShop(double current)
         {
             int room = gameProc.ReadValue<int>(levelIDPointer);// Get current room
@@ -1260,33 +1271,7 @@ namespace LiveSplit.UI.Components
             {
                 Event("\nEntered shop room\n");
                 if (current == 1)// If player is in a conversation with an npc (non shop npcs get handled by another function)
-                {
                     SetShopItems(room);
-                    AddPlaceholders(room);
-                }
-                else
-                {
-                    RemovePlaceholders(room);
-                }
-            }
-        }
-
-        private void InvOpen(double current)
-        {
-            int room = gameProc.ReadValue<int>(levelIDPointer);// Get current room
-            int inShop = (int)gameProc.ReadValue<double>(convOpenPointer);// Get if the player has a shop open
-
-            if (shopLocations.Contains(room) && inShop == 1)// If player is in a shop room and is shopping
-            {
-                Event("\nOpened inventory while in shop\n");
-                if (current == 1)// If inventory is open remove all placeholder items for shops
-                {
-                    RemovePlaceholders(room);
-                }
-                else// If its closed place items back
-                {
-                    AddPlaceholders(room);
-                }
             }
         }
 
@@ -1297,37 +1282,43 @@ namespace LiveSplit.UI.Components
             if (shopLocations.Contains(room))// If player is in a shop room
             {
                 int currentShopLocation = shopLocations.IndexOf(room);
-                List<int> shopItemsAux = shopItems[currentShopLocation];// Get list storing what items correspond to the ones in the shop
-                int idPos = 0, itemAux;
+                List<int> currentShopItems = shopItems[currentShopLocation]; // get shop's randomized inventory
 
-                int invSize = gameProc.ReadValue<int>(totalItemsPointer);// Get inventory size
-                Event("\nCurrent items " + invSize + "\n");
-                int placeholderId = (int)gameProc.ReadValue<double>(IntPtr.Add(inventoryItemsStartPointer, 0x10 * (invSize - 1)));// id of last aquired item
-                Event("Last acquired item: " + placeholderId + "\n");
-                // Index of last aquired item
-                if (placeholderId == 22) idPos = 0;
-                if (placeholderId == 29) idPos = 1;
-                if (placeholderId == 45) idPos = 2;
-
-                Event("Item bought: " + Enum.GetName(typeof(Items), shopItems[currentShopLocation][idPos]) + "\n");
-                itemAux = originalShopItems[currentShopLocation][idPos];// Get what is the id that would have been bought
-                for (int i = 0; i < originalShopItems.Count(); i++)// Update value of hasBoughtItem in all shops that "sell" itemAux
-                {
-                    for (int j = 0; j < originalShopItems[i].Count(); j++)
-                    {
-                        if (originalShopItems[i][j] == itemAux)
-                        {
-                            Event("Updating shop " + Enum.GetName(typeof(shops), i) + ": position " + j + "\n");
-                            hasBoughtItem[i][j] = true;
-                        }
-                    }
+                // Remove all purchased shop placeholder items from the player's inventory
+                List<Items> purchasedItems = new List<Items>();
+                while (shopPlaceholderItems.Contains(PeekLastItem())) {
+                    purchasedItems.Add(RemoveItem());
+                    Event("Last acquired item: " + purchasedItems.Last() + "\n");
                 }
 
-                RemovePlaceholders(room);// remove all placeholders (avoid weird situations)
-                AddItem((int)placeholderId);
-                ReplaceItem(shopItemsAux[idPos],IntPtr.Zero);
-                apSession.Locations.CompleteLocationChecks(itemAux); // Tell Archipelago
-                AddPlaceholders(room);// re-add placeholders
+                // For each purchased item, give the player the real item instead
+                foreach (var placeholderItem in purchasedItems) {
+                    int listPosition = shopPlaceholderItems.IndexOf((int)placeholderItem);
+                    int originalItem = originalShopItems[currentShopLocation][listPosition];
+
+                    SendMessage($"Bought {shopItemNames[originalItem - originalShopItems[0][0]]}!");
+
+                    for (int i = 0; i < originalShopItems.Count(); i++) // Update value of hasBoughtItem in all shops that "sell" originalItem
+                    {
+                        for (int j = 0; j < originalShopItems[i].Count(); j++)
+                        {
+                            if (originalShopItems[i][j] == originalItem)
+                            {
+                                Event("Updating shop " + Enum.GetName(typeof(shops), i) + ": position " + j + "\n");
+                                hasBoughtItem[i][j] = true;
+                            }
+                        }
+                    }
+
+                    // Give the player the item if it's from this game
+                    if (currentShopItems[listPosition] != (int)Items.ArchipelagoItem)
+                        GrantItem(currentShopItems[listPosition],IntPtr.Zero);
+
+                    // Tell Archipelago
+                    archipelago.NotifyLocationChecked(originalItem);
+                }
+
+                // Summarize the purchase
                 Event("\nAt shop " + Enum.GetName(typeof(shops), currentShopLocation) + "\n");
                 foreach (var item in shopItems[currentShopLocation])
                 {
@@ -1337,47 +1328,17 @@ namespace LiveSplit.UI.Components
             }
         }
 
-        private void AddPlaceholders(int room)
-        {
-            List<bool> aux = hasBoughtItem[shopLocations.IndexOf(room)];// Get list storing what items where bought in the current shop
-
-            for (int i = 0; i < aux.Count(); i++)
-            {
-                if (aux[i] == true)// If item was bought add the placeholder
-                {
-                    if (i == 0)
-                    {
-                        AddItem(22);
-                        Event("Adding placholder id 22\n");
-                    }
-                    if (i == 1)
-                    {
-                        AddItem(29);
-                        Event("Adding placholder id 29\n");
-                    }
-                    if (i == 2)
-                    {
-                        AddItem(45);
-                        Event("Adding placholder id 45\n");
-                    }
-                }
-            }
+        /* 
+         * Get the id of the most recently acquired item
+         */
+        private int PeekLastItem(){
+            int invSize = gameProc.ReadValue<int>(totalItemsPointer);
+            return (int)gameProc.ReadValue<double>(IntPtr.Add(inventoryItemsStartPointer, 0x10 * (invSize - 1)));
         }
 
-        private void RemovePlaceholders(int room)
-        {
-            List<bool> aux = hasBoughtItem[shopLocations.IndexOf(room)];// Get list storing what items where bought in the current shop
-
-            foreach (var item in aux)
-            {
-                if (item == true)// If item was bought remove one placeholder
-                {
-                    Event("Removing one placeholder item\n");
-                    RemoveLastItem();
-                }
-            }
-        }
-
+        /*
+         * Save the information about the item to be displayed in the shop.
+         */
         private void SaveShopItem(int origin, int swapped, string name)
         {
             int itemPos, listPos;
@@ -1408,9 +1369,7 @@ namespace LiveSplit.UI.Components
                 (hasBoughtItem[currentShopLocation][shopItemsAux.IndexOf(item)] ? ": bought" : ": not bought") + "\n");
             for (int i = 0; i < list.Count(); i++)
             {
-                if (i == 0) id = 22;
-                if (i == 1) id = 29;
-                if (i == 2) id = 45;
+                id = shopPlaceholderItems[i];
 
                 pointer = IntPtr.Add((IntPtr)new DeepPointer(shopPointer).Deref<Int32>(gameProc), 0x10 * list[i]);// Get pointer to shop item
                 gameProc.WriteValue<double>(pointer, id);// Set shop placeholder to id
@@ -1420,9 +1379,8 @@ namespace LiveSplit.UI.Components
                 {
                     // Determine the item name and description
                     string name, description;
-                    if (shopItemsAux[i] == (int)Items.VitalityFragment) {    
-                        // (trying to write as few bytes as possible)                    
-                        double difficulty = gameProc.ReadValue<double>(difficultyPointer);
+                    if (shopItemsAux[i] == (int)Items.VitalityFragment) {
+                        // (trying to write as few bytes as possible)
                         name = "Vit. Frag.";
                         description = "+" + healthChange[(int)difficulty - 1] + " Max Hp";
                     } else {
@@ -1471,9 +1429,7 @@ namespace LiveSplit.UI.Components
             Event("\nResetting items for " + Enum.GetName(typeof(shops), currentShopLocation) + " shop\n");
             for (int i = 0; i < list.Count(); i++)
             {
-                if (i == 0) idAux = 22;
-                if (i == 1) idAux = 29;
-                if (i == 2) idAux = 45;
+                idAux = shopPlaceholderItems[i];
                 id = shopItemsAux[i];
 
                 pointer = IntPtr.Add((IntPtr)new DeepPointer(0x2304CE8, new int[] { 0x4 }).Deref<Int32>(gameProc), 0x10 * list[i]);// Get pointer to shop item
@@ -1659,7 +1615,7 @@ namespace LiveSplit.UI.Components
             saveWatcher.Update(gameProc);
             deathWatcher.Update(gameProc);
             munnyWatcher.Update(gameProc);
-            invOpenWatcher.Update(gameProc);
+            //invOpenWatcher.Update(gameProc);
             convOpenWatcher.Update(gameProc);
             playerYWatcher.Update(gameProc);
             currentHealthWatcher.Update(gameProc);
@@ -1667,7 +1623,6 @@ namespace LiveSplit.UI.Components
 
         private void UpdateItemWatchers()
         {
-
             taintedMissiveWatcher.Update(gameProc);
             passifloraWatcher.Update(gameProc);
             bellflowerWatcher.Update(gameProc);
@@ -2169,172 +2124,54 @@ namespace LiveSplit.UI.Components
             return false;
         }
 
-        #region Archipelago State Management
-        private Goal goalCondition;
-        private FastKill fastKill;
-
-        private enum Goal : int {
-            AnyPercent = 0,
-            TrueEnding = 1,
-            AllItems = 2
-        }
-
-        private enum FastKill : int {
-            Never = 0,
-            BossOnly = 1,
-            Always = 2
-        }
-
         /*
-         * Setup the archipelago server
+         * Send a message for logging and display
          */
-        private void SetupArchipelago(){
-            LoginResult login = null;
-            var port = settingsControl.GetServerPort();
-            var url = settingsControl.GetServerAddress();
-
-            // Connect to the archipelago server
-            try {
-                SendMessage($"Connecting to Archipelago Server {url}:{port}...");
-                apSession = ArchipelagoSessionFactory.CreateSession(url, port);
-
-                // Login to the server
-                SendMessage($"Logging in as {settingsControl.GetSlot()}...");
-                login = apSession.TryConnectAndLogin("Momodora 4 - Reverie Under the Moonlight", settingsControl.GetSlot(), 
-                        ItemsHandlingFlags.RemoteItems, password: settingsControl.GetServerPassword());
-            } catch (Exception e) {
-                MessageBox.Show($"Could not connect to archipelago server {url}:{port}:\n" + e.Message);
-                return;
-            }
-                    
-            if (login is LoginFailure failure) {
-                MessageBox.Show($"Login Failed:\n" + string.Join("\n", failure.Errors));
-                return;
-            }
-
-            // Message logging    
-            //apSession.MessageLog.OnMessageReceived += (message) => {
-            //    Debug.WriteLine("ApMessage: " + message);
-            //};
-
-            // Handle new item from server
-            apSession.Items.ItemReceived += (receivedItemsHelper) => {
-                var item = receivedItemsHelper.DequeueItem();
-
-                // Only issue item notices for items not from our game
-                //  In theory this should be redundant with RemoteItems but in practice its not
-                if (item.Player.Slot != apSession.ConnectionInfo.Slot) {
-                    SendMessage($"Got {item.ItemName}!");
-                    GrantItem((int) item.ItemId, IntPtr.Zero);
-                }
-            };
-
-            var slotData = ((LoginSuccessful)login).SlotData;
-            goalCondition = (Goal)Convert.ToInt32(slotData["goal"]);
-            fastKill = (FastKill)Convert.ToInt32(slotData["fast_kill"]);
-
-            // Setup Deathlink if enabled
-            if (Convert.ToInt32(slotData["deathlink"]) == 1) {
-                deathLink = apSession.CreateDeathLinkService();
-                deathLink.OnDeathLinkReceived += (deathLinkObject) => {
-                    gameProc.WriteValue<double>(currentHealthPointer, 0);
-                };
-            }
-
-            SetupFinalBossKillEvent();
-
-            // Get the locations from the server and setup our replacements
-            SendMessage("Initializing Randomizer...");
-            SetupLocations(apSession.Locations.ScoutLocationsAsync(false, apSession.Locations.AllLocations.ToArray()));
-        }
-
-        /*
-         * Async Method to process the list of item replacements reported by the archipelago server.
-         */
-        private async void SetupLocations(Task<Dictionary<long, ScoutedItemInfo>> scouterInfoTask){
-            var infoReport = await scouterInfoTask; // wait for the task to finish
-
-            foreach (var locationId in infoReport.Keys) {
-                if (locationId >= sourceIdMapping.Keys.Count)
-                    continue; // Ignore "Special" archipelago locations
-
-                // Extract the relevant info
-                var info = infoReport[locationId];
-                int newItem = (int) info.ItemId;
-                string name = info.ItemDisplayName ?? info.ItemName;
-
-                // Handle other player's items by making them an Archipelago item with a relevant name
-                if (info.Player.Slot != apSession.ConnectionInfo.Slot){
-                    newItem = (int) Items.ArchipelagoItem;
-                    name = info.Player.Name + "'s " + name;
-                }
-
-                // Setup the item replacement in the game's data.
-                CreateLocationMemoryWatcherEvent((int)locationId, newItem, name);
-            }
-
-            SendMessage("Randomization Complete!");
-        }
-
-        /*
-         * Method to check if all items have been collected for a 100% run and report it to Archipelago.
-         */
-        private void CheckIfAllItemsDone(int count) {
-            if (goalCondition != Goal.AllItems)
-                return; // Only relevant for 100% completion runs
-
-            double difficulty = gameProc.ReadValue<double>(difficultyPointer);
-            // Todo: Check if count increases for all items or just randomized ones
-            int totalItems =  new int[] {84, 82, 82, 82}[(int)difficulty];
-            if (count >= totalItems)
-                apSession.Locations.CompleteLocationChecks(100); // Complete the 100% Location
-        }
-
-        /*
-         * Setup the memory watcher to detect a boss kill
-         * TODO: Test this in 1.07, since i had to guess the cutscene pointer
-         */
-        private void SetupFinalBossKillEvent() {
-            // Setup the memory watcher to check the game's memory every 10 milliseconds 
-            MemoryWatcher<double> temp = new MemoryWatcher<double>(cutsceneStatePointer) {
-                UpdateInterval = new TimeSpan(0, 0, 0, 0, 10)
-            };
-
-            // Add the event to trigger if the item is collected
-            temp.OnChanged += (old, current) =>
-            {
-                // Cutscene State 1000 is triggered on boss death. We check that + room id to ensure the right state.
-                int levelID = gameProc.ReadValue<int>(levelIDPointer);
-                if (current == 1000 && levelID == bossRoomLevelIDList.Last())
-                {
-                    // Make sure either we are any% or we have the green leaf
-                    if (goalCondition == Goal.AnyPercent || hasFoundGreenLeaf)
-                        // Tell Archipelago that we checked a location
-                        apSession.Locations.CompleteLocationChecks(101); // Complete the final boss location
-                }
-            };
-
-            temp.Enabled = true;
-            randoSourceWatchers.Add(temp);
-        }
-
-        /*
-         * Check if a fast kill should be performed on the player when they lose health
-         */
-        private bool ShouldFastKill() {
-            if (fastKill == FastKill.Always)
-                return true;
-            else if (fastKill == FastKill.BossOnly) {
-                int levelID = gameProc.ReadValue<int>(levelIDPointer);
-                return bossRoomLevelIDList.Contains(levelID);
-            } else
-                return false;
-        }
-
         private void SendMessage(string message) {
             Event(message);
             RandomizerLabel.Text = message;
         }
-        #endregion
+
+        /*
+        * Setup the memory watcher to detect a boss kill
+        */
+        private MemoryWatcher GetFinalBossKillWatcher() {
+            // Setup the memory watcher to check the game's memory every 10 milliseconds 
+            MemoryWatcher<double> watcher = new MemoryWatcher<double>(cutsceneStatePointer) {
+                UpdateInterval = new TimeSpan(0, 0, 0, 0, 10)
+            };
+
+            // Add the event to trigger when the cutscene flag changes
+            watcher.OnChanged += (old, current) =>
+            {
+                // Cutscene State 1000 is triggered on boss death. We check that + room id to ensure the right state.
+                int levelID = gameProc.ReadValue<int>(levelIDPointer);
+                if (current == 1000 && levelID == bossRoomLevelIDList.Last())
+                    archipelago.CheckVictoryConditionOnBossKill(hasFoundGreenLeaf);
+            };
+
+            watcher.Enabled = true;
+            return watcher;
+        }
+
+        /*
+         * Meow :3
+         */
+        private MemoryWatcher GetMeowWatcher() {
+            // Setup the memory watcher to check the game's memory every 10 milliseconds 
+            MemoryWatcher<double> watcher = new MemoryWatcher<double>(playerFormPointer) {
+                UpdateInterval = new TimeSpan(0, 0, 0, 0, 10)
+            };
+
+            // Trigger when the player's form changes
+            watcher.OnChanged += (old, current) =>
+            {
+                archipelago.Say("Meow :3");
+                watcher.Enabled = false;
+            };
+
+            watcher.Enabled = true;
+            return watcher;
+        }
     }
 }

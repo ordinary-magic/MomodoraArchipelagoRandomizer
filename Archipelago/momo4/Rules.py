@@ -63,6 +63,7 @@ def set_rules(world: MultiWorld, player: int, options: Momo4Options):
         set_rule(world.get_location('Vitality Fragment 2 - Cinder Chambers', player), lambda state: state.has('Cinder Key', player))
 
     ### Monastery Key ###
+    # There's an argument to make these a seperate locked region, but this way is more clear to the player
     reqs_monastery_key = [
         'Soft Tissue',
         'Boss - Pardoner Fennel',
@@ -96,13 +97,14 @@ def set_rules(world: MultiWorld, player: int, options: Momo4Options):
         set_rule(world.get_location('Eri - Hazel Badge', player), lambda state: state.has("Hazel Badge", player))
 
     ### Victory Conditions ###
-    world.get_location('Final Boss - Accurst Queen of Karst', player).place_locked_item(create_item('Final Boss Clear', player))    
-    world.get_location('All Items Obtained', player).place_locked_item(create_item('All Items Obtained', player))
+    world.get_location('Final Boss - Accurst Queen of Karst', player).place_locked_item(create_item('Final Boss Clear', player))
 
-    if options.goal is Goal.option_100: # Need to check items and boss clear
-        world.completion_condition[player] = lambda state: state.has("Final Boss Clear", player) and state.has("All Items Obtained", player)
-    else: # Boss clear condition checks for any% vs true ending conditions on the client
-        world.completion_condition[player] = lambda state: state.has("Final Boss Clear", player)
+    # Boss clear implicitly checks victory rules in the client
+    world.completion_condition[player] = lambda state: state.has("Final Boss Clear", player)
+
+    ### DEBUG ### - makes a cool uml diagram in the archipelago folder
+    from Utils import visualize_regions
+    visualize_regions(world.get_region("Menu", player), "momo4.puml")
 
 ### Region Locks ###
 # Note: the wrappers are needed because afaik we need to be able to reference the player id to check items
@@ -110,7 +112,7 @@ def get_cat_sphere_rule(player: int, options: Momo4Options):
     '''Get a rule function to check if we have the cat sphere'''
     
     def rule(state: CollectionState) -> bool:
-        return state.has("Cat Shpere", player)
+        return state.has("Cat Sphere", player)
     return rule
 
 def get_crest_fragment_rule(player: int, options: Momo4Options):

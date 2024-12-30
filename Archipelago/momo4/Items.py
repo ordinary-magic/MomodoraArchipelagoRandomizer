@@ -4,7 +4,8 @@ from BaseClasses import Item, ItemClassification, MultiWorld
 from typing import Dict
 from .Options import Momo4Options
 
-ITEM_BASE_CODE_OFFSET = 0x4400
+# All id's need to be unique across all games, thus, we define an starting offset value
+BASE_OFFSET = 0x44400
 
 class ItemData(typing.NamedTuple):
     code: int
@@ -14,11 +15,11 @@ class ItemData(typing.NamedTuple):
 class Momo4Item(Item):
     game = "Momodora 4"
 
-    def __init__(self, name, data, player: int = None):
+    def __init__(self, name: str, data: ItemData, player: int = None):
         super(Momo4Item, self).__init__(
             name,
             ItemClassification.progression if data.progression else ItemClassification.useful,
-            data.code,
+            data.code + BASE_OFFSET if data.code > 0 else None,
             player
         )
 
@@ -54,7 +55,7 @@ item_key: Dict[str, ItemData] = {
     'Soft Tissue': ItemData(36, progression=True),
     'Garden Key': ItemData(37, progression=True),
     'Sparse Thread': ItemData(38),
-    'Blessed Charm': ItemData(39),
+    'Blessing Charm': ItemData(39),
     'Heavy Arrows': ItemData(40),
     'Bloodstained Tissue': ItemData(41),
     'Maple Leaf': ItemData(42, progression=True, quantity=0), # Randomizing this would be interesting, but its not detectable by the overlay (afaik)
@@ -70,8 +71,7 @@ item_key: Dict[str, ItemData] = {
     'Crest Fragment - Dash': ItemData(52, progression=True),
     'Crest Fragment - Warp': ItemData(53, progression=True),
     'Vitality Fragment': ItemData(54, quantity=17),
-    "Final Boss Clear": ItemData(55, quantity=0, progression=True), # Should be an event item, but those are bugged in archipelago rn
-    "All Items Obtained": ItemData(56, quantity=0, progression=True), # ^ (next ap release has the bugfix, and then these can be removed)
+    "Final Boss Clear": ItemData(55, quantity=0, progression=True), # Special Archipelago Event
 }
 
 def get_all_items() -> Dict[str, ItemData]:
@@ -82,8 +82,8 @@ def create_item(name: str, player: int) -> Momo4Item:
     '''Create a single item upon request by the server'''
     if name in item_key.keys():
         return Momo4Item(name, item_key[name], player)
-    else: # Special "Event" items that aren't in the list and dont have a code
-         return Momo4Item(name, ItemData(None, progression=True), player)
+    else: # Not a real item, make it an "event" item instead
+         return Momo4Item(name, ItemData(-1, progression=True), player)
 
 
 # Populte the world's item pool with the items from this game
@@ -99,7 +99,7 @@ def create_items(world: MultiWorld, player: int, options: Momo4Options):
         
         # Remove Ivory Bugs and turn-in rewards if they are disallowed
         if not options.bugs:
-            if item == 'Ivory Bug' or item == 'Blessed Charm' or item == 'Hazel Badge':
+            if item == 'Ivory Bug' or item == 'Blessing Charm' or item == 'Hazel Badge':
                 amount = 0
             elif item == 'Bellflower' or item == 'Passiflora':
                 amount -= 1

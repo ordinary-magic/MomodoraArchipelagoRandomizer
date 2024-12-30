@@ -1,5 +1,6 @@
 from typing import Dict, NamedTuple
 from BaseClasses import Location, Region
+from .Items import BASE_OFFSET
 from .Options import Momo4Options
 
 class LocationData(NamedTuple):
@@ -13,7 +14,7 @@ class Momo4Location(Location):
     data: LocationData
 
     def __init__(self, name, data, player, region):
-        super().__init__(player, name, data.code, region)
+        super().__init__(player, name, data.code + BASE_OFFSET, region)
         self.data = data
 
 
@@ -126,11 +127,10 @@ locations_by_region = {
         'Vitality Fragment 3 - Karst Castle': LocationData(55, vitality_fragment=True),
         'Ivory Bug 1 - Karst Castle': LocationData(72, ivory_bug=True),
         'Ivory Bug 2 - Karst Castle': LocationData(73, ivory_bug=True),
-        'Final Boss - Accurst Queen of Karst': LocationData(101),
+        'Final Boss - Accurst Queen of Karst': LocationData(83), # Must be last location
     },
 
     'Menu' : {
-        'All Items Obtained': LocationData(100),
     }
 }
 

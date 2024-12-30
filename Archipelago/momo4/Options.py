@@ -6,7 +6,7 @@ class Goal(Choice):
     """Choose what the victory condition of your run is:
     'Any%' - You must defeat the Queen of Karst Castle
     'True Ending' - You must get game's True Ending
-    '100%' - You have to accomplish everything required to 100% the game
+    '100%' - You must colelct every single randomized location and then beat the final boss
     """
     display_name = "Victory Condition"
     option_any = 0
@@ -47,7 +47,7 @@ class Momo4Options(PerGameCommonOptions):
     hard_mode: HardMode
     deathlink: DeathLinkEnabled
 
-def make_slot_data(options: Momo4Options):
+def make_option_slot_data(options: Momo4Options):
     '''Extract and format relevant slot data for a set of options'''
     return {
         'goal': options.goal.value,

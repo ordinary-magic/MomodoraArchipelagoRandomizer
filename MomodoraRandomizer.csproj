@@ -43,6 +43,9 @@
     <Reference Include="Archipelago.MultiClient.Net">
       <HintPath>References\Archipelago.MultiClient.Net.dll</HintPath>
     </Reference>
+    <Reference Include="Archipelago.MultiClient.Net">
+      <HintPath>References\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
@@ -58,6 +61,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Archipelago.cs" />
     <Compile Include="MomodoraRandomizer.cs" />
     <Compile Include="MomodoraRandomizerFactory.cs" />
     <Compile Include="MomodoraRandomizerSettings.cs">
