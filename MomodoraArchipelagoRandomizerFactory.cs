@@ -3,7 +3,7 @@ using System;
 
 namespace LiveSplit.UI.Components
 {
-    class MomodoraRandomizerFactory : IComponentFactory
+    class MomodoraArchipelagoRandomizerFactory : IComponentFactory
     {
         public string ComponentName => "Momodora RUtM Archipelago Randomizer";
 
@@ -13,15 +13,15 @@ namespace LiveSplit.UI.Components
 
         public string UpdateName => ComponentName;
 
-        public string XMLURL => UpdateURL + "update.MomodoraRandomizer.xml";
+        public string XMLURL => UpdateURL + "update.MomodoraArchipelagoRandomizer.xml";
 
-        public string UpdateURL => "";//"https://raw.githubusercontent.com/axelkarlsson/MomodoraRandomizer/main/";
+        public string UpdateURL => "https://raw.githubusercontent.com/ordinary-magic/MomodoraArchipelagoRandomizer/main/";
 
         public Version Version => Version.Parse("1.0.0");
 
         public IComponent Create(LiveSplitState state)
         {
-            return new MomodoraRandomizer(state);
+            return new MomodoraArchipelagoRandomizer(state);
         }
     }
 }

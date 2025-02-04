@@ -10,6 +10,7 @@ using LiveSplit.UI.Components;
 using System.Collections.Generic;
 using System.Linq;
 using Archipelago.MultiClient.Net.Packets;
+using Newtonsoft.Json.Linq;
 
 public enum Goal : int {
     AnyPercent = 0,
@@ -17,7 +18,8 @@ public enum Goal : int {
     AllItems = 2
 }
 
-public enum FastKill : int {
+// Used for both fastkill and deathlink
+public enum Kill : int {
     Never = 0,
     BossOnly = 1,
     Always = 2
@@ -25,17 +27,15 @@ public enum FastKill : int {
 
 /*
  * Class to manage the archipelago state for the momodora randomizer
- * TODO: Add connection state management tools (disconnect/reconnect)
- * TODO: Figure out how to make items/locations work around connection issues
  */
 public class Momo4Archipelago {
 
     // Constants
-    public const int FINAL_BOSS_LOCATION = MomodoraRandomizer.RANDOMIZER_SOURCE_AMOUNT;
+    public const int FINAL_BOSS_LOCATION = MomodoraArchipelagoRandomizer.RANDOMIZER_SOURCE_AMOUNT;
 
     // Delegates
     public delegate void GiveItemDelegate(int id);
-    public delegate void KillPlayerDelegate();
+    public delegate void KillPlayerDelegate(string cause);
     public delegate void SendMessageDelegate(string text);
     public delegate void SetupLocationDelegate(int locationID, int itemID, string name);
 
@@ -44,14 +44,26 @@ public class Momo4Archipelago {
     private long apBaseIDOffset; // Archipelago server items/locations will start at this number instead of 0
     public int receivedItemCount; // Track how many items the server has sent us
     private int savedItemCount; // Track how many items our game has saved
-    private FastKill fastKillSetting;
+    private Kill deathLinkSetting;
+    private int deathLinkAmount;
+    private int deathLinkCounter;
+    private Kill fastKillSetting;
     private Goal goalSetting;
     private GiveItemDelegate GiveItem;
+    private KillPlayerDelegate KillPlayer;
     private readonly SendMessageDelegate SendMessage;
+    private string url; // Archipelago server url
+    private int port; // Archipelago server port
+    private string slot; // Archipelago server slot name
+    private string password; // Archipelago server password
+    private List<long> offlineLocations; // place to store locations scouted while offline that the server needs know about
+    private bool connecting; // flag for if the server is trying to (re)connect
 
     // Properties
-    public DeathLinkService DeathLink {get; private set;}
+    private DeathLinkService DeathLink {get; set;}
     public bool HasSaveData { get => savedItemCount != 0; }
+    public bool IgnoreNextDeath {get; set;} = false; // tell archipelago not to deathlink the next time the player dies
+    
 
     /*
      * Construct the archipelago object
@@ -59,76 +71,170 @@ public class Momo4Archipelago {
      */
     public Momo4Archipelago(SendMessageDelegate SendMessage) {
         this.SendMessage = SendMessage;
+        offlineLocations = new List<long>();
+        connecting = false;
+        savedItemCount = 0;
     }
 
     /*
     * Connect to the Archipelago Server
     */
-    public void ConnectArchipelago(string url, int port, string slot, string password){
-        LoginResult login = null;
+    public bool ConnectArchipelago(string url, int port, string slot, string password){
+        connecting = true;        
 
-        // Connect to the archipelago server
-        try {
-            SendMessage($"Connecting to Archipelago Server {url}:{port}...");
-            apSession = ArchipelagoSessionFactory.CreateSession(url, port);
+        var login = TryToConnect(url, port, slot, password);
+       
+        if (login is LoginFailure) {
+            // Try connecting twice (this works surprisingly often (the library is not good))
+            login = TryToConnect(url, port, slot, password);
 
-            // Login to the server
-            SendMessage($"Logging in as {slot}...");
-            login = apSession.TryConnectAndLogin("Momodora 4 - Reverie Under the Moonlight", slot, 
-                    ItemsHandlingFlags.AllItems, password: password);
-
-        } catch (Exception e) {
-            MessageBox.Show($"Could not connect to archipelago server {url}:{port}:\n" + e.Message);
-            return;
-        }
-                
-        if (login is LoginFailure failure) {
-            MessageBox.Show($"Login Failed:\n" + string.Join("\n", failure.Errors));
-            return;
+            if (login is LoginFailure failure) {
+                MessageBox.Show($"Could not connect to archipelago server {url}:{port}:\n" + string.Join("\n", failure.Errors));
+                SendMessage(failure.Errors[0]);
+                return false;
+            }
         }
 
+        // Get settings and protocol info from the server
         var slotData = ((LoginSuccessful)login).SlotData;
         goalSetting = (Goal)Convert.ToInt32(slotData["goal"]);
-        fastKillSetting = (FastKill)Convert.ToInt32(slotData["fast_kill"]);
+        fastKillSetting = (Kill)Convert.ToInt32(slotData["fast_kill"]);
         apBaseIDOffset = Convert.ToInt64(slotData["base_offset"]);
 
-        if(Convert.ToInt32(slotData["deathlink"]) == 1){
+        // Setup the deathlink
+        deathLinkSetting = (Kill)Convert.ToInt32(slotData["deathlink"]);
+        if(deathLinkSetting != Kill.Never){
+            deathLinkAmount = Convert.ToInt32(slotData["dl_amount"]);
+            deathLinkCounter = deathLinkAmount;
             DeathLink = apSession.CreateDeathLinkService();
+            DeathLink.EnableDeathLink();
         }
 
         // Read the item count from the data storage
         apSession.DataStorage[Scope.Slot, "item_count"].Initialize(0); // only sets to 0 if this doesnt yet exist
         savedItemCount = apSession.DataStorage[Scope.Slot, "item_count"];
         receivedItemCount = savedItemCount;
+
+        return true;
+    }
+
+    /*
+    * Try to create a new apSession to the server using the provided address and login information.
+    */
+    private LoginResult TryToConnect(string url, int port, string slot, string password) {
+        // Connect to the archipelago server
+        LoginResult login = null;
+
+        try {
+            SendMessage($"Connecting to Archipelago Server {url}:{port}...");
+            apSession = ArchipelagoSessionFactory.CreateSession(url, port);
+
+            // Login to the server
+            SendMessage($"Logging in as {slot}...");
+            login = apSession.TryConnectAndLogin("Momodora 4 - Reverie Under the Moonlight", slot,
+                    ItemsHandlingFlags.AllItems, password: password);
+
+        } catch (Exception e) {
+            return new LoginFailure(e.Message);
+        }
+
+        // Save the successful login info
+        this.url = url;
+        this.port = port;
+        this.slot = slot;
+        this.password = password;
+
+        return login;
     }
 
     /*
      * Initialize the Randomizer
      */
-    public void InitializeRandomizer(GiveItemDelegate GiveItem, KillPlayerDelegate KillPlayer, SetupLocationDelegate SetupLocation){
+    public async Task InitializeRandomizer(GiveItemDelegate GiveItem, KillPlayerDelegate KillPlayer, SetupLocationDelegate SetupLocation) {
         this.GiveItem = GiveItem;
         apSession.Items.ItemReceived += NewItemRecieved;
-        ResyncArchipeligoItemsOnStartup();
+        ResyncArchipeligoItemsOnStartup(savedItemCount);
 
         // Setup Deathlink if enabled
-        if (DeathLink != null)
-            DeathLink.OnDeathLinkReceived += _ => KillPlayer();
+        this.KillPlayer = KillPlayer;
+        if (deathLinkSetting != Kill.Never)
+            DeathLink.OnDeathLinkReceived += dl => KillPlayer(dl.Cause);
 
         // Get the locations from the server and setup our replacements
         SendMessage("Initializing Randomizer...");
-        SetupLocations(SetupLocation, apSession.Locations.ScoutLocationsAsync(false, apSession.Locations.AllLocations.ToArray()));
+        await SetupLocations(SetupLocation, apSession.Locations.ScoutLocationsAsync(false, apSession.Locations.AllLocations.ToArray()));
+
+        connecting = false;
+    }
+
+    /*
+     * Disconnect from the archipelago server
+     */
+    public async void Disconnect() {
+        // Would prefer to synchronously wait on this but for some reason it takes almost 5 mins.
+        await apSession.Socket.DisconnectAsync();
+    }
+
+    /*
+     * Re-establish a lost connection to the archipelago server
+     */
+    public void Reconnect() {
+        if (connecting)
+            return; // dont reconnect if we are already connecting
+
+        try {
+            connecting = true;
+
+            // Save this b4 reconnect to prevent race condition of getting new item btwn connection and start of resync
+            int cachedItems = receivedItemCount;
+
+            var login = TryToConnect(url, port, slot, password);
+
+            if (login is LoginFailure failure) {
+                SendMessage("Unable to Reconnect to Server");
+                MessageBox.Show($"Could not reconnect to archipelago server:\n" + string.Join("\n", failure.Errors)); // Debug
+                return;
+            }
+
+            // Re-initialize the deathlink service
+            // Setup the deathlink
+                if(deathLinkSetting != Kill.Never){
+                    deathLinkCounter = deathLinkAmount;
+                    DeathLink = apSession.CreateDeathLinkService();
+                    DeathLink.OnDeathLinkReceived += dl => KillPlayer(dl.Cause);
+                    DeathLink.EnableDeathLink();                    
+                }
+
+            // Get any items we've missed
+            // Note: after a descync, AllItemsRecieved be out of order with actual game item ordering, but because
+            // we dont get updates while offline and we ignore local items in GiveArchipelagoItem, it doesnt matter
+            ResyncArchipeligoItemsOnStartup(cachedItems);
+
+            // Re-sync our saved item counter with the server        
+            apSession.DataStorage[Scope.Slot, "item_count"] = savedItemCount;
+
+            // Issue any missed location checks
+            if (offlineLocations.Count > 0) {
+                apSession.Locations.CompleteLocationChecks(offlineLocations.ToArray());
+                offlineLocations.Clear();
+            }
+
+        } finally {
+            // No matter how we exit this block, we are no longer "connecting"
+            connecting = false;
+        }
     }
 
     /*
     * Async Method to process the list of item replacements reported by the archipelago server.
     */
-    private async void SetupLocations(SetupLocationDelegate SetupLocation, Task<Dictionary<long, ScoutedItemInfo>> scouterInfoTask){
+    private async Task SetupLocations(SetupLocationDelegate SetupLocation, Task<Dictionary<long, ScoutedItemInfo>> scouterInfoTask){
         var infoReport = await scouterInfoTask; // wait for the task to finish
 
         foreach (var serverlocationID in infoReport.Keys) {
             int gameLocationID = (int)(serverlocationID - apBaseIDOffset);
 
-            if (gameLocationID >= MomodoraRandomizer.RANDOMIZER_SOURCE_AMOUNT)
+            if (gameLocationID >= MomodoraArchipelagoRandomizer.RANDOMIZER_SOURCE_AMOUNT)
                 continue; // Ignore "Special" archipelago locations
 
             // Extract the relevant info
@@ -138,15 +244,13 @@ public class Momo4Archipelago {
 
             // Handle other player's items by making them an Archipelago item with a relevant name
             if (scoutedItem.Player.Slot != apSession.ConnectionInfo.Slot){
-                gameItemID = (int) MomodoraRandomizer.Items.ArchipelagoItem;
+                gameItemID = (int) MomodoraArchipelagoRandomizer.Items.ArchipelagoItem;
                 name = scoutedItem.Player.Name + "'s " + name;
             }
 
             // Setup the item replacement in the game's data.
             SetupLocation(gameLocationID, gameItemID, name);
         }
-
-        SendMessage("Randomization Complete!");
     }
 
     /*
@@ -194,6 +298,26 @@ public class Momo4Archipelago {
     }
 
     /*
+     * Reconstruct what items have been purchased based on what locations the server knows about.
+     * shopLocationIDs - the original location # of each shop item
+     * returns a list of shops, with true/false for each item in the shop
+     */
+    public List<List<bool>> GetBoughtItems(List<List<int>> shopLocationIDs) {
+        // for every location in locationids, see if its been checked yet
+        var boughtItems = new List<List<bool>>();
+        var checkedItems = apSession.Locations.AllLocationsChecked;
+
+        foreach (var shopContents in shopLocationIDs) {
+            var shopState = new List<bool>();
+            foreach (var itemID in shopContents)
+                shopState.Add(checkedItems.Contains(itemID + apBaseIDOffset));
+            boughtItems.Add(shopState);
+        }
+
+        return boughtItems;
+    }
+
+    /*
      * Give an archipelago item to the player
      */
     private void GiveArchipelagoItem(ItemInfo item){
@@ -219,13 +343,53 @@ public class Momo4Archipelago {
     * location - the randomizer id of the location that was checked
     */
     public void NotifyLocationChecked(int location) {
-        apSession.Locations.CompleteLocationChecks(location + apBaseIDOffset);
+        if (apSession.Socket.Connected)
+            apSession.Locations.CompleteLocationChecks(location + apBaseIDOffset);
+        else {
+            offlineLocations.Add(location + apBaseIDOffset);
+            Reconnect();
+        }
+    }
+
+    /*
+     * Tell archipelago that the player died (in case of deatlink games)
+     * levelID = the id of the level where the player died.
+     */
+    public void NotifyPlayerDeath(int levelID) {
+        if (IgnoreNextDeath) {
+            IgnoreNextDeath = false;
+            
+        } else if (ShouldDeathLink(levelID)) {
+            // Check which (if any) boss killed us
+            string cause = null;
+            if (MomodoraArchipelagoRandomizer.bossNameDictionary.Keys.Contains(levelID))
+                cause = MomodoraArchipelagoRandomizer.bossNameDictionary[levelID];
+
+            // Check if we have hit the requisite number of deaths
+            // If we are disconnected, dont send the deathlink, but dont reset the counter either
+            if (--deathLinkCounter <= 0 && apSession.Socket.Connected) {
+                SendMessage($"Sending Death: {cause ?? "overworld"}");
+
+                string name = apSession.Players.ActivePlayer.Name;
+                string reason = $"{name} died to {cause ?? "the overworld"}";
+                DeathLink.SendDeathLink(new DeathLink(slot, reason));
+
+                deathLinkCounter = deathLinkAmount;
+
+            } else if (apSession.Socket.Connected) {
+                if (deathLinkCounter > 1)
+                    SendMessage($"{deathLinkCounter} Lives Till Deathlink");
+                else
+                    SendMessage($"Next Death Will Deathlink.");
+            }
+        }
     }
 
     /*
     * Issue the player all items which were lost on death.
     */
     public void ResyncArchipeligoItemsOnDeath() {
+        // Note: Safe from desync because recievedItemCount cant increase untill we are synced again
         int amount =  receivedItemCount - savedItemCount;
 
         // Re-issue the missing items
@@ -235,21 +399,26 @@ public class Momo4Archipelago {
 
     /*
     * Issue the player all items which they received while the client wasn't running.
+    * itemsKnown = the number of items we already know about
     */
-    private void ResyncArchipeligoItemsOnStartup() {
+    private void ResyncArchipeligoItemsOnStartup(int itemsKnown) {
         // Re-issue the missing items
-        foreach(var item in apSession.Items.AllItemsReceived.Skip(savedItemCount)) {
+        foreach(var item in apSession.Items.AllItemsReceived.Skip(itemsKnown)) {
             receivedItemCount++;
             GiveArchipelagoItem(item);
         }
     }
 
     /*
-     * Update revieved item counts to mark current items as saved in the game itself.
+     * Save local data to the server and update the saved item counter.
      */
-    public void SaveItems() {
+    public void Save() {
         savedItemCount = receivedItemCount;
-        apSession.DataStorage[Scope.Slot, "item_count"] = savedItemCount;
+
+        if (apSession.Socket.Connected)
+            apSession.DataStorage[Scope.Slot, "item_count"] = savedItemCount;
+        else
+            Reconnect();
     }
 
     /*
@@ -262,15 +431,22 @@ public class Momo4Archipelago {
     }
 
     /*
-    * Check if a fast kill should be performed on the player when they lose health
+    * Check if the settings say a player should be killed per the level id.
+    * setting - the kill setting to check (fastkill or deathlink)
     * levelID - the id of the room the player is currently in
     */
-    public bool ShouldFastKill(int levelID) {
-        if (fastKillSetting == FastKill.Always)
+    private bool ShouldKill(Kill setting, int levelID) {
+        if (setting == Kill.Always)
             return true;
-        else if (fastKillSetting == FastKill.BossOnly) {
-            return MomodoraRandomizer.bossRoomLevelIDList.Contains(levelID);
+        else if (setting == Kill.BossOnly) {
+            return MomodoraArchipelagoRandomizer.bossNameDictionary.Keys.Contains(levelID);
         } else
             return false;
     }
+
+    // Should the player be deathlinked at the specific level id
+    public bool ShouldDeathLink(int levelID) => ShouldKill(deathLinkSetting, levelID);
+
+    // Should the player be fast-killed at the specific level id
+    public bool ShouldFastKill(int levelID) => ShouldKill(fastKillSetting, levelID);
 }

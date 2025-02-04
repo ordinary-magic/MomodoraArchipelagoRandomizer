@@ -103,8 +103,8 @@ def set_rules(world: MultiWorld, player: int, options: Momo4Options):
     world.completion_condition[player] = lambda state: state.has("Final Boss Clear", player)
 
     ### DEBUG ### - makes a cool uml diagram in the archipelago folder
-    from Utils import visualize_regions
-    visualize_regions(world.get_region("Menu", player), "momo4.puml")
+    #from Utils import visualize_regions
+    #visualize_regions(world.get_region("Menu", player), "momo4.puml")
 
 ### Region Locks ###
 # Note: the wrappers are needed because afaik we need to be able to reference the player id to check items
