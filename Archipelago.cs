@@ -151,18 +151,19 @@ public class Momo4Archipelago {
      * Initialize the Randomizer
      */
     public async Task InitializeRandomizer(GiveItemDelegate GiveItem, KillPlayerDelegate KillPlayer, SetupLocationDelegate SetupLocation) {
+        // Get the locations from the server and setup our replacements
+        SendMessage("Initializing Randomizer...");
+        await SetupLocations(SetupLocation, apSession.Locations.ScoutLocationsAsync(false, apSession.Locations.AllLocations.ToArray()));
+
+        // Initialize Items
         this.GiveItem = GiveItem;
-        apSession.Items.ItemReceived += NewItemRecieved;
         ResyncArchipeligoItemsOnStartup(savedItemCount);
+        apSession.Items.ItemReceived += NewItemRecieved;
 
         // Setup Deathlink if enabled
         this.KillPlayer = KillPlayer;
         if (deathLinkSetting != Kill.Never)
             DeathLink.OnDeathLinkReceived += dl => KillPlayer(dl.Cause);
-
-        // Get the locations from the server and setup our replacements
-        SendMessage("Initializing Randomizer...");
-        await SetupLocations(SetupLocation, apSession.Locations.ScoutLocationsAsync(false, apSession.Locations.AllLocations.ToArray()));
 
         connecting = false;
     }
@@ -243,7 +244,7 @@ public class Momo4Archipelago {
             string name = scoutedItem.ItemDisplayName ?? scoutedItem.ItemName;
 
             // Handle other player's items by making them an Archipelago item with a relevant name
-            if (scoutedItem.Player.Slot != apSession.ConnectionInfo.Slot){
+            if (scoutedItem.Player.Slot != apSession.ConnectionInfo.Slot) {
                 gameItemID = (int) MomodoraArchipelagoRandomizer.Items.ArchipelagoItem;
                 name = scoutedItem.Player.Name + "'s " + name;
             }
@@ -319,12 +320,13 @@ public class Momo4Archipelago {
 
     /*
      * Give an archipelago item to the player
+     * Is asynchronous incase GiveItem is blocked so as to not softlock the archipelago client.
      */
-    private void GiveArchipelagoItem(ItemInfo item){
+    private async void GiveArchipelagoItem(ItemInfo item) {
         // Only give items that didnt come from this game
         if (item.Player.Slot != apSession.ConnectionInfo.Slot) {
             SendMessage($"Got {item.ItemName} from {item.Player.Name}!");
-            GiveItem((int) (item.ItemId - apBaseIDOffset));
+            await Task.Run(() => GiveItem((int) (item.ItemId - apBaseIDOffset)));
         } 
     }
 
@@ -407,6 +409,10 @@ public class Momo4Archipelago {
             receivedItemCount++;
             GiveArchipelagoItem(item);
         }
+
+        // Clear the item queue
+        while (apSession.Items.Any())
+            apSession.Items.DequeueItem();
     }
 
     /*

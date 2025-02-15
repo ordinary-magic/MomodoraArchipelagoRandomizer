@@ -1,4 +1,12 @@
 <updates>
+  <update version="1.0.1">
+    <files>
+      <file path="Components/MomodoraArchipelagoRandomizer.dll" status="changed"/>
+    </files>
+    <changelog>
+      <change>Fixed bug that prevented items from being recieved from other players.</change>
+    </changelog>
+  </update>
   <update version="1.0.0">
     <files>
       <file path="Components/MomodoraArchipelagoRandomizer.dll" status="changed"/>
