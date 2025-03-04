@@ -275,6 +275,12 @@ namespace LiveSplit.UI.Components
             [81] = new int[] { 163 },
             [82] = new int[] { 163 },
         };
+        private readonly List<int> chargeItems = new List<int> 
+            {(int)Items.Bellflower, (int)Items.Passiflora, (int)Items.TaintedMissive, (int)Items.IvoryBug};
+
+        private readonly List<int> keys = new List<int>
+            {(int) Items.GardenKey, (int)Items.CinderKey, (int)Items.MonasteryKey};
+
         const int FINAL_BOSS_LEVEL_ID = 232;
         public static readonly Dictionary<int, string> bossNameDictionary = new Dictionary<int, string>() {
             {53, "Antrhopod Demon Edea"},
@@ -391,8 +397,8 @@ namespace LiveSplit.UI.Components
 
         List<List<int>> doorLocations;
         private double unlocked;
-        List<int> hasSavedKey;
-        List<int> hasKey;
+        List<bool> hasSavedKey;
+        List<bool> hasKey;
         private bool hasWarp;
         private bool hasSavedWarp;
         #endregion
@@ -469,6 +475,60 @@ namespace LiveSplit.UI.Components
             }
         }
 
+        /*
+         * Setup default values for the randomizer's state trackers.
+         */
+        private void InitializeRandomizerState()
+        {
+            hasChargeItem = Enumerable.Repeat(false, chargeItems.Count).ToList();
+            hasSavedChargeItem = new List<bool>(hasChargeItem);
+
+            hasKey = Enumerable.Repeat(false, keys.Count).ToList();
+            hasSavedKey = new List<bool>(hasKey);
+            
+            hasBathedLeaf = false;
+            hasSavedBathedLeaf = false;
+            hasFoundGreenLeaf = false;
+            hasSavedFoundGreenLeaf = false;
+            hasWarp = false;
+            hasSavedWarp = false;
+            hasCatSphere = false;
+            hasSavedCatSphere = false;
+
+            // Place original numbers for now, they get changed later
+            shopItems = new List<List<int>>
+            {
+                new List<int> { 15, 11, 21 },
+                new List<int> { 11 },
+                new List<int> { 31, 2 },
+                new List<int> { 7 },
+                new List<int> { 8, 21 },
+                new List<int> { 47, 21, 13 },
+                new List<int> { 35, 46, 44 }
+            };
+
+            hasBoughtItem = new List<List<bool>>
+            {
+                new List<bool> { false, false, false },
+                new List<bool> { false },
+                new List<bool> { false, false },
+                new List<bool> { false },
+                new List<bool> { false, false },
+                new List<bool> { false, false, false },
+                new List<bool> { false, false, false }
+            };
+            hasSavedBoughtItem = new List<List<bool>>
+            {
+                new List<bool> { false, false, false },
+                new List<bool> { false },
+                new List<bool> { false, false },
+                new List<bool> { false },
+                new List<bool> { false, false },
+                new List<bool> { false, false, false },
+                new List<bool> { false, false, false }
+            };
+        }
+
         private void OnReset(object sender, TimerPhase value)
         {
             randomizerRunning = false;
@@ -492,53 +552,13 @@ namespace LiveSplit.UI.Components
             if (VerifyProcessRunning())
             {
                 SetupVersionDifferences();
-                hasSavedChargeItem = new List<bool> { false, false, false };
-                hasChargeItem = new List<bool> { false, false, false };
-                hasSavedKey = new List<int> { 0, 0, 0 };
-                hasKey = new List<int> { 0, 0, 0 };
-                hasBathedLeaf = false;
-                hasSavedBathedLeaf = false;
-                hasFoundGreenLeaf = false;
-                hasSavedFoundGreenLeaf = false;
-                // Place original numbers for now, they get changed later
-                shopItems = new List<List<int>>
-                {
-                    new List<int> { 15, 11, 21 },
-                    new List<int> { 11 },
-                    new List<int> { 31, 2 },
-                    new List<int> { 7 },
-                    new List<int> { 8, 21 },
-                    new List<int> { 47, 21, 13 },
-                    new List<int> { 35, 46, 44 }
-                };
-                hasBoughtItem = new List<List<bool>>
-                {
-                    new List<bool> { false, false, false },
-                    new List<bool> { false },
-                    new List<bool> { false, false },
-                    new List<bool> { false },
-                    new List<bool> { false, false },
-                    new List<bool> { false, false, false },
-                    new List<bool> { false, false, false }
-                };
-                hasSavedBoughtItem = new List<List<bool>>
-                {
-                    new List<bool> { false, false, false },
-                    new List<bool> { false },
-                    new List<bool> { false, false },
-                    new List<bool> { false },
-                    new List<bool> { false, false },
-                    new List<bool> { false, false, false },
-                    new List<bool> { false, false, false }
-                };
+                InitializeRandomizerState();
                 pointerValues = new List<List<int>>
                 {
                     new List<int> { },
                     new List<int> { },
                     new List<int> { }
                 };
-                hasWarp = false;
-                hasSavedWarp = false;
                 Events = new List<string> { };
 
                 Array.Clear(requirementMatrix, 0, requirementMatrix.Length);
@@ -606,6 +626,7 @@ namespace LiveSplit.UI.Components
                 saveWatcher.Enabled = true;
                 saveWatcher.OnChanged += (old, current) =>
                 {
+                    
                     if (current > old)
                     {
                         SaveVariables();
@@ -664,6 +685,8 @@ namespace LiveSplit.UI.Components
 
                 difficulty = (int) gameProc.ReadValue<double>(difficultyPointer);
 
+                UpdateItemWatchers(); // Make sure the watchers get initial values.
+
                 #endregion
 
                 // Archipelago setup contains a lot of server connection and 
@@ -681,16 +704,7 @@ namespace LiveSplit.UI.Components
                 settingsControl.GetServerPassword()
             )) {
                 if (archipelago.HasSaveData)
-                    // If save data exists, that means we need to load the shop state.
-                    hasBoughtItem = archipelago.GetBoughtItems(originalShopItems);
-
-                else {
-                    // This is a legacy from the other randomizer i dont fully understand.
-                    //  It seems to be done in order to to initialize the "ivory bug" key item so it can be incremented later.
-                    // Regardless, we only ever want to add that item once, at the start of the game.
-                    AddItem((int)Items.IvoryBug);
-                    itemGiven = 3;
-                }
+                    LoadRandomizerState();
 
                 // Initialize the randomizer
                 await archipelago.InitializeRandomizer(
@@ -714,6 +728,21 @@ namespace LiveSplit.UI.Components
                 randomizerRunning = true;
             }
         }
+        
+        /*
+         * Load saved state data from archipelago
+         */
+        private void LoadRandomizerState()
+        {
+            hasChargeItem = archipelago.HasItems(chargeItems);
+            hasKey = archipelago.HasItems(keys);
+            hasBathedLeaf = archipelago.HasLocation(sourceIdMapping.First(pair => pair.Value == (int)Items.FreshSpringLeaf).Key);
+            hasFoundGreenLeaf = archipelago.HasItem((int) Items.FreshSpringLeaf);
+            hasWarp = archipelago.HasItem((int) Items.FragmentWarp);
+            hasCatSphere = archipelago.HasItem((int) Items.CatSphere);
+            hasBoughtItem = archipelago.GetBoughtItems(originalShopItems);
+            SaveVariables();
+        }
 
         private void SaveVariables()
         {
@@ -722,8 +751,11 @@ namespace LiveSplit.UI.Components
             for (int i = 0; i < hasChargeItem.Count(); i++)
             {
                 Event("SavedChargeItem[" + i+"]: " + hasSavedChargeItem[i] + " = ChargeItem["+i+"]: " + hasChargeItem[i] + "\n");
-                Event("SavedKey["+i+"]: " + hasSavedKey[i] + " = Key["+i+"]: " + hasKey[i] + "\n");
                 hasSavedChargeItem[i] = hasChargeItem[i];
+            }
+            for (int i = 0; i < hasSavedKey.Count(); i++)
+            {
+                Event("SavedKey["+i+"]: " + hasSavedKey[i] + " = Key["+i+"]: " + hasKey[i] + "\n");
                 hasSavedKey[i] = hasKey[i];
             }
             Event("\nShop items:\n");
@@ -912,11 +944,7 @@ namespace LiveSplit.UI.Components
             int totalItems = gameProc.ReadValue<int>(totalItemsPointer);
             Debug.WriteLine("Total items: " + totalItems);
 
-            if (id == (int)Items.IvoryBug)
-            {
-                AddIvoryBug();
-            }
-            else if (id == (int)Items.VitalityFragment)
+            if (id == (int)Items.VitalityFragment)
             {
                 AddVitalityFragment();
             }
@@ -930,7 +958,7 @@ namespace LiveSplit.UI.Components
                         hasWarp = true;
                     }
                 }
-                else if (id == (int)Items.Bellflower || id == (int)Items.Passiflora || id == (int)Items.TaintedMissive)
+                else if (id == (int)Items.Bellflower || id == (int)Items.Passiflora || id == (int)Items.TaintedMissive || id == (int)Items.IvoryBug)
                 {
                     AddChargeItem(id);
                 }
@@ -993,7 +1021,7 @@ namespace LiveSplit.UI.Components
             else if (ivoryBugWatcher.Changed)
             {
                 Event("\nRemoving IB\n");
-                RemoveIvoryBug();
+                RemoveChargeItem((int)Items.IvoryBug, 1);
                 return Items.IvoryBug;
             }
             else if (crestFragmentWatcher.Changed)
@@ -1022,35 +1050,37 @@ namespace LiveSplit.UI.Components
         private void AddChargeItem(int id)
         {
             IntPtr maxValuePointer, saveValuePtr;
-            bool hasItem;
-            int j;
             switch (id)
             {
                 case (int)Items.Bellflower:
-                    j = 0;
                     maxValuePointer = bellflowerMaxValuePointer;
                     saveValuePtr = bellflowerSaveValuePointer;
-                    hasItem = hasChargeItem[j];
                     break;
                 case (int)Items.Passiflora:
-                    j = 1;
                     maxValuePointer = passifloraMaxValuePointer;
                     saveValuePtr = passifloraSaveValuePointer;
-                    hasItem = hasChargeItem[j];
                     break;
                 case (int)Items.TaintedMissive:
-                    j = 2;
                     maxValuePointer = taintedMissiveMaxValuePointer;
                     saveValuePtr = taintedMissiveSaveValuePointer;
-                    hasItem = hasChargeItem[j];
                     break;
+                case (int)Items.IvoryBug:
+                    maxValuePointer = ivoryBugCountPointer;
+                    saveValuePtr = IntPtr.Zero;
+                    break;
+                // Cat Sphere is a charge item with infinite chages, should handle here, but i dont have the charge amount pointer
                 default:
                     return;
             }
-            double currentMaxCharges = gameProc.ReadValue<double>(maxValuePointer);
-            int charges = GetChargeItemIncrease(id, currentMaxCharges);
-            gameProc.WriteValue<double>(maxValuePointer, charges + currentMaxCharges);
-            gameProc.WriteValue<double>(saveValuePtr, charges + currentMaxCharges);
+            int j = chargeItems.IndexOf(id);
+            bool hasItem = hasChargeItem[j];
+            double currentMaxCharges = hasItem? gameProc.ReadValue<double>(maxValuePointer): 0;
+            int increase = GetChargeItemIncrease(id, currentMaxCharges);
+
+            gameProc.WriteValue(maxValuePointer, increase + currentMaxCharges);
+            if (saveValuePtr != IntPtr.Zero)
+                gameProc.WriteValue(saveValuePtr, increase + currentMaxCharges);
+
             if (currentMaxCharges == 0 && !hasItem)
             {
                 hasChargeItem[j] = true;
@@ -1066,6 +1096,9 @@ namespace LiveSplit.UI.Components
          */
         private int GetChargeItemIncrease(int id, double currentCharges) {
             switch (id) {
+                case (int)Items.IvoryBug:
+                    return 1; // Ivory Bugs are always worth one
+
                 case (int)Items.Bellflower:
                     if (currentCharges < 1) return 3; // First bellflower is worth 3
                     if (currentCharges > 8) return 1; // Last bellflower is worth 1
@@ -1085,31 +1118,33 @@ namespace LiveSplit.UI.Components
         {
             double currentCharges;
             IntPtr maxValuePointer, saveValuePtr;
-            int j = 0;
             switch (id)
             {
                 case (int)Items.Bellflower:
-                    j = 0;
                     maxValuePointer = bellflowerMaxValuePointer;
                     saveValuePtr = bellflowerSaveValuePointer;
                     break;
                 case (int)Items.Passiflora:
-                    j = 1;
                     maxValuePointer = passifloraMaxValuePointer;
                     saveValuePtr = passifloraSaveValuePointer;
                     break;
                 case (int)Items.TaintedMissive:
-                    j = 2;
                     maxValuePointer = taintedMissiveMaxValuePointer;
                     saveValuePtr = taintedMissiveSaveValuePointer;
+                    break;
+                case (int)Items.IvoryBug:
+                    maxValuePointer = ivoryBugCountPointer;
+                    saveValuePtr = IntPtr.Zero;
                     break;
                 default:
                     return;
             }
+            int j = chargeItems.IndexOf(id);
             hasChargeItem[j] = true;
             currentCharges = gameProc.ReadValue<double>(maxValuePointer);
-            gameProc.WriteValue<double>(maxValuePointer, currentCharges - charges);
-            gameProc.WriteValue<double>(saveValuePtr, currentCharges - charges);
+            gameProc.WriteValue(maxValuePointer, currentCharges - charges);
+            if (saveValuePtr != IntPtr.Zero)
+                gameProc.WriteValue(saveValuePtr, currentCharges - charges);
             
             // Get rid of the item if it doesnt have any charges
             // TODO: figure out how to stop accumulating empty bellflowers
@@ -1173,33 +1208,9 @@ namespace LiveSplit.UI.Components
             gameProc.WriteValue<double>(maxHealthPointer, health + healthChange[(int)difficulty - 1]);
         }
 
-        private void AddIvoryBug()
-        {
-            double bugs = gameProc.ReadValue<double>(ivoryBugCountPointer);
-            gameProc.WriteValue<double>(ivoryBugCountPointer, bugs + 1);
-        }
-
-        private void RemoveIvoryBug()
-        {
-            double bugs = gameProc.ReadValue<double>(ivoryBugCountPointer);
-            gameProc.WriteValue<double>(ivoryBugCountPointer, bugs - 1);
-        }
-
         private void AddKey(int id)
         {
-            if (id == (int)Items.GardenKey)
-            {
-                hasKey[0] = 1;
-            }
-            else if (id == (int)Items.CinderKey)
-            {
-                hasKey[1] = 1;
-            }
-            else
-            {
-                hasKey[2] = 1;
-            }
-
+            hasKey[keys.IndexOf(id)] = true;
             AddItem(id);
         }
 
@@ -1238,7 +1249,7 @@ namespace LiveSplit.UI.Components
                 {
                     unlocked = gameProc.ReadValue<double>(potentialSourcesPointers[j]);//Read value for key acquired
 
-                    if (unlocked != hasKey[i])//If the state of "key acquired" is different than it should be invert value
+                    if (unlocked == 1 != hasKey[i])//If the state of "key acquired" is different than it should be invert value
                     {
                         Event("\nApplying door logic\n");
                         Event("Door " + ((unlocked == 1) ? "closed" : "opened") + "\n");

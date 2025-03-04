@@ -1,4 +1,12 @@
 <updates>
+  <update version="1.0.2">
+    <files>
+      <file path="Components/MomodoraArchipelagoRandomizer.dll" status="changed"/>
+    </files>
+    <changelog>
+      <change>Improved game state tracking across reloads, fixed some key item menu crashes.</change>
+    </changelog>
+  </update>
   <update version="1.0.1">
     <files>
       <file path="Components/MomodoraArchipelagoRandomizer.dll" status="changed"/>

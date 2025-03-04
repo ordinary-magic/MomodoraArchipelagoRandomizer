@@ -304,16 +304,11 @@ public class Momo4Archipelago {
      * returns a list of shops, with true/false for each item in the shop
      */
     public List<List<bool>> GetBoughtItems(List<List<int>> shopLocationIDs) {
-        // for every location in locationids, see if its been checked yet
         var boughtItems = new List<List<bool>>();
         var checkedItems = apSession.Locations.AllLocationsChecked;
 
-        foreach (var shopContents in shopLocationIDs) {
-            var shopState = new List<bool>();
-            foreach (var itemID in shopContents)
-                shopState.Add(checkedItems.Contains(itemID + apBaseIDOffset));
-            boughtItems.Add(shopState);
-        }
+        foreach (var shopContents in shopLocationIDs)
+            boughtItems.Add(shopContents.Select(HasLocation).ToList());
 
         return boughtItems;
     }
@@ -328,6 +323,33 @@ public class Momo4Archipelago {
             SendMessage($"Got {item.ItemName} from {item.Player.Name}!");
             await Task.Run(() => GiveItem((int) (item.ItemId - apBaseIDOffset)));
         } 
+    }
+
+    /*
+     * Check archipelago to see if an item has been obtained by the player
+     * itemToCheck - the item to check
+     * returns true/false indicating if the item has been obtained by the player
+     */
+    public bool HasItem(int itemToCheck) {
+        return apSession.Items.AllItemsReceived.Any(item => (item.ItemId - apBaseIDOffset) == itemToCheck);
+    }
+
+    /*
+     * Check archipelago to see which of the items in a list have been obtained by the player
+     * itemsToCheck - the items to check
+     * returns a list of bools corresponding to each item in the list (true if obtained, false otherwise)
+     */
+    public List<bool> HasItems(List<int> itemsToCheck) {
+        return itemsToCheck.Select(HasItem).ToList();
+    }
+
+    /*
+     * Check archipelago to see if a location has been checked by the player
+     * locationToCheck - the item to check
+     * returns true/false indicating if the location has been checked by the player
+     */
+    public bool HasLocation(int locationToCheck) {
+        return apSession.Locations.AllLocationsChecked.Contains(locationToCheck);
     }
 
     /*
