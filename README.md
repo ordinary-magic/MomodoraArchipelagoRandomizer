@@ -1,3 +1,6 @@
+# DEPRECIATED
+ This code already had issues with shops which made it very likely to break runs, and further updates to Archipelago and Livesplit mean that this repo no longer functions at all. I do not intend to maintain it in its current state.
+
 # MomodoraArchipelagoRandomizer
  A LiveSplit component that is a randomizer for Momodora: Reverie Under the Moonlight. Currently supporting game versions v1.05b and v1.07
 
