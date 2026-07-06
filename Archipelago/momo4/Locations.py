@@ -1,7 +1,7 @@
 from typing import Dict, NamedTuple
-from BaseClasses import Location, Region
+from BaseClasses import Location, Region # type: ignore
 from .Items import BASE_OFFSET
-from .Options import Momo4Options
+from .Settings import Momo4Options
 
 class LocationData(NamedTuple):
     code: int
@@ -107,7 +107,7 @@ locations_by_region = {
     'Royal Pinacotheca': {
         'Shop - Violet Sprite': LocationData(17),
         'Shop - Quick Arrows': LocationData(18),
-        'Shop - Pocket Incensory': LocationData(19),
+        #'Shop - Pocket Incensory': LocationData(19), # Currently disabled, since it disappears if you have the incensory from the boss
         'Black Sachet': LocationData(20),
         'Sealed Wind': LocationData(21),
         'Boss - Duquess Lupair and Magnolia': LocationData(38, boss=True),

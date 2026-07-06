@@ -13,10 +13,17 @@ Write-Host "Creating Build artifacts..."
 if(!(Test-Path "build")) {
     New-Item -Path "build" -ItemType Directory -Force | Out-Null
 }
+
+# Consolidate the build into the output folder
 Copy-Item "bin\Debug\MomodoraArchipelagoRandomizer.dll" "build\MomodoraArchipelagoRandomizer.dll" -Force
-Copy-Item "References\Archipelago.MultiClient.Net.dll" "build\Archipelago.MultiClient.Net.dll" -Force
-Copy-Item "References\Newtonsoft.Json.dll" "build\Newtonsoft.Json.dll" -Force
+Copy-Item "bin\Debug\Archipelago.MultiClient.Net.dll" "build\Archipelago.MultiClient.Net.dll" -Force
+Copy-Item "bin\Debug\Newtonsoft.Json.dll" "build\Newtonsoft.Json.dll" -Force
 Copy-Item "README.md" "build\README.md" -Force
+
+
+# Update the "Components" which are used in the update script
+Copy-Item "bin\Debug\MomodoraArchipelagoRandomizer.dll" "Components\MomodoraArchipelagoRandomizer.dll" -Force
+Copy-Item "bin\Debug\Archipelago.MultiClient.Net.dll" "Components\Archipelago.MultiClient.Net.dll" -Force
 
 Write-Host "Done!"
 

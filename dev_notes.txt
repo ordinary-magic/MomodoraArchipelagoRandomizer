@@ -1,0 +1,2 @@
+TODO: Spider Shop should not have progress items unless we are in 100% mode - possibly also hardcore mode?
+TODO: flag sealed wind as a requirement for the fresh spring leaf location

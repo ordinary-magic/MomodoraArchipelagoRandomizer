@@ -1,8 +1,8 @@
-from BaseClasses import CollectionState, MultiWorld
-from ..generic.Rules import add_item_rule, set_rule
-from .Items import Momo4Item, create_item
+from BaseClasses import CollectionState, MultiWorld # type: ignore
+from ..generic.Rules import add_rule # type: ignore
+from .Items import create_item
 from .Locations import is_valid_location_name
-from .Options import Goal, Momo4Options
+from .Settings import Momo4Options
 
 def set_rules(world: MultiWorld, player: int, options: Momo4Options):
     '''Setup the item placement rules for Momodora 4'''
@@ -40,7 +40,7 @@ def set_rules(world: MultiWorld, player: int, options: Momo4Options):
     ]
     for location in reqs_cat_sphere:
         if is_valid_location_name(location, options):
-            set_rule(world.get_location(location, player), lambda state: state.has("Cat Sphere", player))
+            add_rule(world.get_location(location, player), lambda state: state.has("Cat Sphere", player))
 
 
     ### Crest Fragments ###
@@ -53,14 +53,14 @@ def set_rules(world: MultiWorld, player: int, options: Momo4Options):
     ]
     for location in reqs_dash_fragment:
         if is_valid_location_name(location, options):
-            set_rule(world.get_location(location, player), lambda state: state.has("Crest Fragment - Dash", player))
+            add_rule(world.get_location(location, player), lambda state: state.has("Crest Fragment - Dash", player))
 
     ### Garden Key ###
     # Garden Key dependencies are handled by the region lock  
 
     ### Cinder Key ###
     if options.vitality:
-        set_rule(world.get_location('Vitality Fragment 2 - Cinder Chambers', player), lambda state: state.has('Cinder Key', player))
+        add_rule(world.get_location('Vitality Fragment 2 - Cinder Chambers', player), lambda state: state.has('Cinder Key', player))
 
     ### Monastery Key ###
     # There's an argument to make these a seperate locked region, but this way is more clear to the player
@@ -73,31 +73,35 @@ def set_rules(world: MultiWorld, player: int, options: Momo4Options):
     ]
     for location in reqs_monastery_key:
         if is_valid_location_name(location, options):
-            set_rule(world.get_location(location, player), lambda state: state.has("Monastery Key", player))
+            add_rule(world.get_location(location, player), lambda state: state.has("Monastery Key", player))
 
     ### Soft Tissue ###
     if options.hard_mode:
-        set_rule(world.get_location('Boss - Archpriestess Choir', player), lambda state: state.has("Soft Tissue", player))
+        add_rule(world.get_location('Boss - Archpriestess Choir', player), lambda state: state.has("Soft Tissue", player))
 
     ### Dirty Shroom ###
     # Not currently randomized because getting it early removes the item from the map
-    #set_rule(world.get_location('Imp - Dirty Shroom Trade', player), lambda state: state.has('Dirty Shroom', player))
+    #add_rule(world.get_location('Imp - Dirty Shroom Trade', player), lambda state: state.has('Dirty Shroom', player))
 
     ### Sealed Wind ###
-    set_rule(world.get_location("Fresh Spring Leaf", player), lambda state: state.has("Sealed Wind", player))
+    add_rule(world.get_location("Fresh Spring Leaf", player), lambda state: state.has("Sealed Wind", player))
 
     ### Ivory Bugs (and related items) ###
     if options.bugs:
         # Ensure logic knows how many bugs the rewards cost
-        set_rule(world.get_location('10 Ivory Bug Reward', player), lambda state: state.has("Ivory Bug", player, 10))
-        set_rule(world.get_location('15 Ivory Bug Reward', player), lambda state: state.has("Ivory Bug", player, 15))
-        set_rule(world.get_location('20 Ivory Bug Reward', player), lambda state: state.has("Ivory Bug", player, 20))
+        add_rule(world.get_location('10 Ivory Bug Reward', player), lambda state: state.has("Ivory Bug", player, 10))
+        add_rule(world.get_location('15 Ivory Bug Reward', player), lambda state: state.has("Ivory Bug", player, 15))
+        add_rule(world.get_location('20 Ivory Bug Reward', player), lambda state: state.has("Ivory Bug", player, 20))
 
         # And the bonus badge trade step
-        set_rule(world.get_location('Eri - Hazel Badge', player), lambda state: state.has("Hazel Badge", player))
+        add_rule(world.get_location('Eri - Hazel Badge', player), lambda state: state.has("Hazel Badge", player))
 
     ### Victory Conditions ###
     world.get_location('Final Boss - Accurst Queen of Karst', player).place_locked_item(create_item('Final Boss Clear', player))
+
+    # Add the true ending spring leaf rule
+    if options.goal.value == 1:
+        add_rule(world.get_location('Final Boss - Accurst Queen of Karst', player), lambda state: state.has("Fresh Spring Leaf", player))
 
     # Boss clear implicitly checks victory rules in the client
     world.completion_condition[player] = lambda state: state.has("Final Boss Clear", player)
@@ -131,7 +135,7 @@ def get_garden_key_rule(player: int, options: Momo4Options):
     
     def rule(state: CollectionState) -> bool:
         return state.has("Garden Key", player) or \
-            (options.hard_mode and state.has("Bakman Patch", player)) 
+            (options.hard_mode.value and state.has("Bakman Patch", player)) 
     return rule   
 
 region_lock_rules = [

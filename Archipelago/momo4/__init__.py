@@ -1,10 +1,10 @@
 from .Items import BASE_OFFSET, create_item, create_items, get_all_items, Momo4Item
 from .Locations import get_all_locations
-from .Options import make_option_slot_data, Momo4Options
+from .Settings import make_option_slot_data, Momo4Options
 from .Regions import create_regions
 from .Rules import set_rules
-from ..AutoWorld import WebWorld, World
-from BaseClasses import Tutorial
+from ..AutoWorld import WebWorld, World # type: ignore
+from BaseClasses import Tutorial # type: ignore
 
 class Momo4WebWorld(WebWorld):
     setup_en = Tutorial(
@@ -35,7 +35,7 @@ class Momo4World(World):
     location_name_to_id = {name: data.code + BASE_OFFSET for name, data in get_all_locations().items()}
 
     def create_item(self, name: str) -> Momo4Item:
-        create_item(name, self.player)
+        return create_item(name, self.player)
 
     def create_items(self):
         create_items(self.multiworld, self.player, self.options)

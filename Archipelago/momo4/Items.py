@@ -1,8 +1,8 @@
 import typing
 
-from BaseClasses import Item, ItemClassification, MultiWorld 
+from BaseClasses import Item, ItemClassification, MultiWorld  # type: ignore
 from typing import Dict
-from .Options import Momo4Options
+from .Settings import Momo4Options
 
 # All id's need to be unique across all games, thus, we define an starting offset value
 BASE_OFFSET = 0x44400
@@ -60,7 +60,7 @@ item_key: Dict[str, ItemData] = {
     'Bloodstained Tissue': ItemData(41),
     'Maple Leaf': ItemData(42, progression=True, quantity=0), # Randomizing this would be interesting, but its not detectable by the overlay (afaik)
     'Fresh Spring Leaf': ItemData(43, progression=True),
-    'Pocket Incensory': ItemData(44, quantity=2),
+    'Pocket Incensory': ItemData(44), # Despite being in two places, you can only have one.
     'Birthstone': ItemData(45, quantity=0), # NG+ item (final boss no-hit drop)
     'Quick Arrows': ItemData(46),
     'Drilling Arrows': ItemData(47),
@@ -108,7 +108,9 @@ def create_items(world: MultiWorld, player: int, options: Momo4Options):
         if not options.hard_mode:
             if item == 'Bakman Patch' or item == 'Sparse Thread' or item == 'Bloodstained Tissue' \
             or item == 'Edea\'s Pearl' or item == 'Torn Branch' or item == 'Heavy Arrows':
-                amount = 0            
+                amount = 0
+
+            # Techinically, should always have 1 incensory, but the shop version misbehaves too much
             elif item == 'Tainted Missive' or item == 'Pocket Incensory':
                 amount -= 1
 

@@ -12,6 +12,7 @@
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
+    <RuntimeIdentifiers>win</RuntimeIdentifiers>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -21,6 +22,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <RuntimeIdentifiers>win</RuntimeIdentifiers>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -29,8 +31,10 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <RuntimeIdentifiers>win</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Archipelago.MultiClient.Net" Version="6.6.0" />
     <Reference Include="CustomFontDialog, Version=0.2.0.0, Culture=neutral, PublicKeyToken=null">
       <HintPath>References\CustomFontDialog.dll</HintPath>
     </Reference>
@@ -39,12 +43,6 @@
     </Reference>
     <Reference Include="LiveSplit.Text">
       <HintPath>References\LiveSplit.Text.dll</HintPath>
-    </Reference>
-    <Reference Include="Archipelago.MultiClient.Net">
-      <HintPath>References\Archipelago.MultiClient.Net.dll</HintPath>
-    </Reference>
-    <Reference Include="Archipelago.MultiClient.Net">
-      <HintPath>References\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -61,24 +59,27 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Archipelago.cs" />
-    <Compile Include="MomodoraArchipelagoRandomizer.cs" />
-    <Compile Include="MomodoraArchipelagoRandomizerFactory.cs" />
-    <Compile Include="MomodoraArchipelagoRandomizerSettings.cs">
+    <Compile Include="Mod\Archipelago.cs" />
+    <Compile Include="Mod\GameInfo.cs" />
+    <Compile Include="Mod\GameMonitor.cs" />
+    <Compile Include="Mod\ProgressTracker.cs" />
+    <Compile Include="Mod\Randomizer.cs" />
+    <Compile Include="Mod\RandomizerFactory.cs" />
+    <Compile Include="Mod\RandomizerSettings.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="MomodoraArchipelagoRandomizerSettings.Designer.cs">
-      <DependentUpon>MomodoraArchipelagoRandomizerSettings.cs</DependentUpon>
+    <Compile Include="Mod\RandomizerSettings.Designer.cs">
+      <DependentUpon>RandomizerSettings.cs</DependentUpon>
     </Compile>
-    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Mod\Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="MomodoraArchipelagoRandomizerSettings.resx">
-      <DependentUpon>MomodoraArchipelagoRandomizerSettings.cs</DependentUpon>
+    <EmbeddedResource Include="Mod\RandomizerSettings.resx">
+      <DependentUpon>RandomizerSettings.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="update.MomodoraArchipelagoRandomizer.xml" />
+    <Content Include="Mod\update.MomodoraArchipelagoRandomizer.xml" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -1,4 +1,5 @@
 ﻿using LiveSplit.Model;
+using MomodoraArchipelago;
 using System;
 
 namespace LiveSplit.UI.Components
@@ -17,11 +18,11 @@ namespace LiveSplit.UI.Components
 
         public string UpdateURL => "https://raw.githubusercontent.com/ordinary-magic/MomodoraArchipelagoRandomizer/main/";
 
-        public Version Version => Version.Parse("1.0.0");
+        public Version Version => Version.Parse("1.0.3");
 
         public IComponent Create(LiveSplitState state)
         {
-            return new MomodoraArchipelagoRandomizer(state);
+            return new Randomizer(state);
         }
     }
 }

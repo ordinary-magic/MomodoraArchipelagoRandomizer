@@ -1,6 +1,6 @@
-from BaseClasses import Entrance, MultiWorld, Region
+from BaseClasses import Entrance, MultiWorld, Region # type: ignore
 from .Locations import get_locations
-from .Options import Momo4Options
+from .Settings import Momo4Options
 from .Rules import get_region_locking_rule
 
 def create_regions(world: MultiWorld, player: int, options: Momo4Options):

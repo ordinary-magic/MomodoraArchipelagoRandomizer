@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from Options import Choice, Toggle, Range, PerGameCommonOptions
+from Options import Choice, Toggle, Range, PerGameCommonOptions # type: ignore
 
 class Goal(Choice):
     """Choose what the victory condition of your run is:
