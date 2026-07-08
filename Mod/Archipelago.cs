@@ -67,7 +67,7 @@ public class Momo4Archipelago {
     public bool IgnoreNextDeath {get; set;} = false; // tell archipelago not to deathlink the next time the player dies
     public bool Bugs {get; private set; } = false;
     public bool Vitality {get; private set; } = false;
-    
+    public bool HardMode {get; private set; } = false;
 
     /*
      * Construct the archipelago object
@@ -105,6 +105,15 @@ public class Momo4Archipelago {
         goalSetting = (Goal)Convert.ToInt32(slotData["goal"]);
         fastKillSetting = (Kill)Convert.ToInt32(slotData["fast_kill"]);
         apBaseIDOffset = Convert.ToInt64(slotData["base_offset"]);
+        
+        // Check if we are in hard mode (must use ContainsKey since old server versions dont have this)
+        if (slotData.ContainsKey("hard_mode"))
+            HardMode = Convert.ToBoolean(slotData["hard_mode"]);
+        
+        // If the setting doesn't exist (because of an old apworld), check if we included a boss location
+        else
+            HardMode = apSession.Locations.AllLocations.Any(
+                loc => loc - apBaseIDOffset == GameInfo.BOSS_LOCATION_START);
 
         // Setup the deathlink
         deathLinkSetting = (Kill)Convert.ToInt32(slotData["deathlink"]);

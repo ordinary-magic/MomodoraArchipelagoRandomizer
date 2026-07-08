@@ -31,6 +31,7 @@ namespace MomodoraArchipelago
         TornBranch = 26,
         MonasteryKey = 27,
         ShopPlaceholder3 = 29,
+        ShopPlaceholder4 = 30,
         ClarityShard = 31,
         DirtyShroom = 32,
         IvoryBug = 34,
@@ -78,6 +79,8 @@ namespace MomodoraArchipelago
         public static readonly int[] sourceToStringMapping = {1, 2, 1, 6, 10, 18, 8, 5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 20, 22, 1, 24, 11, 12, 1, 9, 21, 30, 31, 3, 4, 14, 19, 13, 5, 25, 23, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 27, 26, 28, 29, 15, 16, 17};
         public static readonly int RANDOMIZER_SOURCE_AMOUNT = sourceToStringMapping.Length;
         public const int GET_ITEM_STRING_AMNT = 32;
+
+        public const int BOSS_LOCATION_START = 31;
 
         // Mapping from game id of a "Location" to the item that resides there.
         public static readonly Dictionary<int, int> sourceIdMapping = new Dictionary<int, int>()
@@ -266,19 +269,19 @@ namespace MomodoraArchipelago
         // A Mapping from level id to the nam eof the boss which is found there (TODO)
         public static readonly Dictionary<int, string> bossNameDictionary = new  Dictionary<int, string>() {
             {53, "Antrhopod Demon Edea"},
-            {73, "Antrhopod Demon Edea"},
-            {141, "Antrhopod Demon Edea"},
-            {193, "Antrhopod Demon Edea"},
-            {153, "Antrhopod Demon Edea"},
-            {104, "Antrhopod Demon Edea"},
-            {97, "Antrhopod Demon Edea"},
-            {212, "Antrhopod Demon Edea"},
-            {FINAL_BOSS_LEVEL_ID, "Accurst Queen of Karst"},
+            {73, "Lubella, the Witch of Decay"},
+            {141, "Derelict Frida"},
+            {193, "The Heretical Arsonist"},
+            {153, "Lubella, the Witch of Decay"},
+            {104, "Pardoner Fennel"},
+            {97, "Archpriestess Choir"},
+            {212, "Duchess Lupiar & Royal Huntress Magnolia"},
+            {FINAL_BOSS_LEVEL_ID, "The Accurst Queen of Karst"},
         };
 
         // List of unused items to give as shop placeholder items 
         public static readonly List<int> shopPlaceholderItems = new List<int>() {
-            (int)Items.ShopPlaceholder1, (int)Items.ShopPlaceholder2, (int)Items.ShopPlaceholder3
+            (int)Items.ShopPlaceholder1, (int)Items.ShopPlaceholder2, (int)Items.ShopPlaceholder3, (int)Items.ShopPlaceholder4
         };
 
         // How Much the health amount should change per the game's difficulty
@@ -355,11 +358,11 @@ namespace MomodoraArchipelago
 
         // Names and Descriptions of the placeholder shop items
         public static readonly List<string> placeholderShopNames = new List<string> {
-            "Item 1", "Item 2", "Item 3",
+            "Placeholder", "Placeholder", "Placeholder", "Sold Out",
         };
 
         public static readonly List<string> placeholderShopDescription = new List<string> {
-            "Shop Placeholder #1", "Shop Placeholder #2", "Shop Placeholder #3",
+            "Placeholder #1", "Placeholder #2", "Placeholder #3", "Sorry!",
         };
     }
 }
