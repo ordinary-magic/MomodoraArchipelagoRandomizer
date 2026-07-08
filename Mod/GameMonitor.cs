@@ -230,12 +230,10 @@ namespace MomodoraArchipelago
                     warpStartPointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<int>(gameProc), 0xB40);
                     playerFormPointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4}).Deref<int>(gameProc), 0x760);
                     lubella2Pointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0x560);
-                    playerXPointer = IntPtr.Add((IntPtr)new DeepPointer(0x0253597C, new int[] { 0xC, 0xBC, 0x8, 0x4 }).Deref<int>(gameProc), 0x120);
-                    playerYPointer = IntPtr.Add((IntPtr)new DeepPointer(0x0253597C, new int[] { 0xC, 0xBC, 0x8, 0x4 }).Deref<int>(gameProc), 0x130);
 
 	                cutsceneStatePointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4 }).Deref<int>(gameProc),0xAB0);
-                    spiderMerchantPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x4, 0x4, 0x60, 0x4, 0x4}).Deref<int>(gameProc), 0xD0);
-                    
+                    spiderMerchantPointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<int>(gameProc), 0xD0);
+
                     #endregion
                     break;
                 case 40222720:
@@ -364,14 +362,9 @@ namespace MomodoraArchipelago
                     warpStartPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<int>(gameProc), 0xB40);
                     playerFormPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<int>(gameProc), 0x760);
                     lubella2Pointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0x560);
-                    playerXPointer = IntPtr.Add((IntPtr)new DeepPointer(0x025A2B3C, new int[] { 0xC, 0xBC, 0x8, 0x4}).Deref<int>(gameProc), 0x120);
-                    playerYPointer = IntPtr.Add((IntPtr)new DeepPointer(0x025A2B3C, new int[] { 0xC, 0xBC, 0x8, 0x4 }).Deref<int>(gameProc), 0x130);
-
-	                cutsceneStatePointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4 }).Deref<int>(gameProc),0xAC0);
-
-                    // Based on the attached .CT files, the merchant flags should be one of these, but i cant seem to affect them  or any variant of them in game.
-                    spiderMerchantPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x4, 0x4, 0x60, 0x4, 0x4}).Deref<int>(gameProc), 0xD0);
                     
+	                cutsceneStatePointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4 }).Deref<int>(gameProc),0xAC0);
+                    spiderMerchantPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<int>(gameProc), 0xD0);
                     #endregion
                     break;
 
@@ -635,9 +628,28 @@ namespace MomodoraArchipelago
             deathWatcher = CreateSpecialMemoryWatcher<double>(deathAmountPointer);
             saveWatcher = CreateSpecialMemoryWatcher<double>(saveAmountPointer);
             convOpenWatcher = CreateSpecialMemoryWatcher<double>(convOpenPointer);
-            playerYWatcher = CreateSpecialMemoryWatcher<double>(playerYPointer);
             currentHealthWatcher = CreateSpecialMemoryWatcher<double>(currentHealthPointer);
             UpdateSpecialWatchers();
+        }
+
+        /**
+         * Setup the player x and y pointers, and the player y watcher.
+         *   These need to be deferrred until the player is active in the game.
+         */
+        public void SetupPlayerPositionMonitor()
+        {
+            switch (Version)
+            {
+                case 1.05:
+                    playerXPointer = IntPtr.Add((IntPtr)new DeepPointer(0x0253597C, new int[] { 0xC, 0xBC, 0x8, 0x4 }).Deref<int>(gameProc), 0x120);
+                    playerYPointer = IntPtr.Add((IntPtr)new DeepPointer(0x0253597C, new int[] { 0xC, 0xBC, 0x8, 0x4 }).Deref<int>(gameProc), 0x130);
+                    break;
+                case 1.07:
+                    playerXPointer = IntPtr.Add((IntPtr)new DeepPointer(0x025A2B3C, new int[] { 0xC, 0xBC, 0x8, 0x4}).Deref<int>(gameProc), 0x120);
+                    playerYPointer = IntPtr.Add((IntPtr)new DeepPointer(0x025A2B3C, new int[] { 0xC, 0xBC, 0x8, 0x4 }).Deref<int>(gameProc), 0x130);
+                    break;
+            }
+            playerYWatcher = CreateSpecialMemoryWatcher<double>(playerYPointer);
         }
 
         /**

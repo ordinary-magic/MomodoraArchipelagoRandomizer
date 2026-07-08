@@ -50,7 +50,7 @@ namespace MomodoraArchipelago
                 new List<bool> { false },
                 new List<bool> { false, false },
                 new List<bool> { false, false, false },
-                new List<bool> { false, false, true } // Pocket Incensory is banned from the shop to avoid accidental duplicates
+                new List<bool> { false, false, false } // Pocket Incensory is banned from the shop to avoid accidental duplicates
             };
             hasSavedBoughtItem = new List<List<bool>>
             {
@@ -60,7 +60,7 @@ namespace MomodoraArchipelago
                 new List<bool> { false },
                 new List<bool> { false, false },
                 new List<bool> { false, false, false },
-                new List<bool> { false, false, true } // Pocket Incensory is banned from the shop to avoid accidental duplicates
+                new List<bool> { false, false, false } // Pocket Incensory is banned from the shop to avoid accidental duplicates
             };
         }
 

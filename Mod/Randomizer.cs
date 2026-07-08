@@ -139,7 +139,6 @@ namespace MomodoraArchipelago
             };
 
             gameProc.convOpenWatcher.OnChanged += ConversationCheckIfShop;
-            gameProc.playerYWatcher.OnChanged += PlayerYOnUpdate;
 
             gameProc.currentHealthWatcher.OnChanged += (old, current) =>
             {
@@ -180,6 +179,13 @@ namespace MomodoraArchipelago
                     KillPlayer,
                     CreateLocationMemoryWatcherEvent
                 );
+
+                // If we are in a hard mode run, we must ban the pocket incensory in the shop
+                if (archipelago.HardMode)
+                 {
+                    SaveShopItem(19, (int) Items.ShopPlaceholder4, "Sold Out");
+                    progress.hasBoughtItem[6][2] = true;
+                }
 
                 // Check if we started the game in a shop room
                 if(GameInfo.shopLocations.Contains(gameProc.ReadValue<int>(gameProc.levelIDPointer)))
@@ -621,9 +627,12 @@ namespace MomodoraArchipelago
                 }
             }
             
-            gameProc.playerYWatcher.Enabled = ShouldEnableYWatcher(current);
+            // Enable or disable the player Y Watcher as appropriate
+            if (ShouldEnableYWatcher(current))
+                EnablePlayerYWatcher();
+            else if (gameProc.playerYWatcher != null)
+                gameProc.playerYWatcher.Enabled = false;
             
-
             // Update/Reset the shop items
             if (GameInfo.shopLocations.Contains(current))
                 ModifyShopInventory(current);
@@ -631,7 +640,7 @@ namespace MomodoraArchipelago
                 ResetShopInventory(old);
 
             // DEBUG - set munny to 1000 every time you walk into a room
-            gameProc.WriteValue<double>(gameProc.munnyPointer, 1000);
+            //gameProc.WriteValue<double>(gameProc.munnyPointer, 1000);
         }
 
 
@@ -677,9 +686,25 @@ namespace MomodoraArchipelago
             }
         }
 
+        // We should enable the player y watcher if we are in the sealed wind room,
+        //   or if we have defeated lubella without the cat sphere, and are in the room where it teaches you how to turn back to escape 
         public bool ShouldEnableYWatcher(int room)
         {
             return (room == 82) || (room == 149 && gameProc.ReadValue<double>(gameProc.lubella2Pointer) > 0 && !progress.hasCatSphere);
+        }
+
+        // Enable the player Y watcher, and possibly set it up if it hasn't yet been created.
+        public void EnablePlayerYWatcher()
+        {
+            // If the watcher doesn't yet exist, setup the position monitor and our callback
+            if (gameProc.playerYWatcher == null)
+            {
+                gameProc.SetupPlayerPositionMonitor();
+                gameProc.playerYWatcher.OnChanged += PlayerYOnUpdate;
+            }
+
+            // Turn it on
+            gameProc.playerYWatcher.Enabled = true;
         }
 
         private void ConversationCheckIfShop(double old, double current)
@@ -831,7 +856,9 @@ namespace MomodoraArchipelago
                 gameProc.WriteValue<double>(pointer, id);// Set shop placeholder to id
 
                 // Vitality Fragment & AP Items dont have a name or effect so we have to write to memory
-                if (shopItemsAux[i] == (int)Items.VitalityFragment || shopItemsAux[i] == (int)Items.ArchipelagoItem)
+                if (shopItemsAux[i] == (int)Items.VitalityFragment || 
+                    shopItemsAux[i] == (int)Items.ArchipelagoItem ||
+                    GameInfo.shopPlaceholderItems.Contains(shopItemsAux[i]))
                 {
                     // Determine the item name and description
                     string name, description;
@@ -839,10 +866,17 @@ namespace MomodoraArchipelago
                         // (trying to write as few bytes as possible)
                         name = "Vit. Frag.";
                         description = "+ Max Hp";
-                    } else {
+                    
+                    } else if (shopItemsAux[i] == (int)Items.ArchipelagoItem){
                         name = "AP Item"; // Respecting short item name by storing the variable string in the description
                         // Get the replced item's id, then subtract it by id of the first shop item to get the index
                         description = shopItemNames[GameInfo.originalShopItems[currentShopLocation][i] - GameInfo.originalShopItems[0][0]];
+                    
+                    } else{
+                        // If it's a placeholder item, use the placeholder info
+                        int index = GameInfo.shopPlaceholderItems.IndexOf(shopItemsAux[i]);
+                        name = GameInfo.placeholderShopNames[index];
+                        description = GameInfo.placeholderShopDescription[index];
                     }
 
                     bytes = Encoding.ASCII.GetBytes(name);
@@ -1119,10 +1153,10 @@ namespace MomodoraArchipelago
         private void SetupSpiderWatcher() {
             var watcher = gameProc.CreateSpecialMemoryWatcher<double>(gameProc.spiderMerchantPointer, (old, current) =>
                 {
-                    SendMessage($"Spider: ({old} -> {current})."); // DEBUG
+                    //SendMessage($"Spider: ({old} -> {current})."); // DEBUG
                     if (archipelago.ShouldSpiderMerchantKill())
                     {
-                        //SendMessage("Killed by Spider Merchant.");
+                        SendMessage("Died of guilt after killing an innocent Spider Merchant.");
                         gameProc.WriteValue<double>(gameProc.currentHealthPointer, 0);    
                     }
                 });

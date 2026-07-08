@@ -66,4 +66,5 @@ def make_option_slot_data(options: Momo4Options):
         'fast_kill': options.fast_kill.value,
         'deathlink': options.deathlink.value,
         'dl_amount': options.dl_amount.value,
+        'hard_mode': options.hard_mode.value,
     }
