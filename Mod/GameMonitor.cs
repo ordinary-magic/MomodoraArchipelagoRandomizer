@@ -237,7 +237,7 @@ namespace MomodoraArchipelago
 
 	                cutsceneStatePointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4 }).Deref<int>(gameProc),0xAB0);
 
-                    spiderMerchantPointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x4, 0x4, 0x60, 0x4, 0x4 }).Deref<int>(gameProc), 0xD0);
+                    spiderMerchantPointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<int>(gameProc), 0xD0);
                     #endregion
                     break;
                 case 40222720:
@@ -385,7 +385,7 @@ namespace MomodoraArchipelago
             switch (Version)
             {
                 case 1.05:
-                    basePtr = (IntPtr)new DeepPointer(0x230B0F8, new int[] { 0x8, 0x0, 0x0 }).Deref<int>(gameProc);
+                    basePtr = (IntPtr)new DeepPointer(0x230B0F8, new int[] { 0x4, 0x0, 0x0 }).Deref<int>(gameProc);
                     itemGetStringPtrs = new IntPtr[GameInfo.GET_ITEM_STRING_AMNT];
                     //sys_dia03 ivory bug
                     itemGetStringPtrs[0] = (IntPtr)new DeepPointer(basePtr + 0xcc4, new int[] { 0xC, 0x10, 0x0 }).Deref<int>(gameProc);
@@ -453,7 +453,7 @@ namespace MomodoraArchipelago
                     itemGetStringPtrs[31] = (IntPtr)new DeepPointer(basePtr + 0x160, new int[] { 0xC, 0x10, 0x0 }).Deref<int>(gameProc);
                     break;
                 case 1.07:
-                    basePtr = (IntPtr)new DeepPointer(0x023782B8, new int[] { 0x8, 0x0, 0x0 }).Deref<int>(gameProc);
+                    basePtr = (IntPtr)new DeepPointer(0x023782B8, new int[] { 0x4, 0x0, 0x0 }).Deref<int>(gameProc);
                     itemGetStringPtrs = new IntPtr[GameInfo.GET_ITEM_STRING_AMNT];
                     //sys_dia03 ivory bug
                     itemGetStringPtrs[0] = (IntPtr)new DeepPointer(basePtr + 0xcc4, new int[] { 0xC, 0x10, 0x0 }).Deref<int>(gameProc);
