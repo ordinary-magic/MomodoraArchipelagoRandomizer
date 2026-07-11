@@ -97,11 +97,7 @@ namespace MomodoraArchipelago
 
                 // Register update functions on the special watchers
                 SetupSepcialUpdateEvents();
-
-                // Disable/Enable Ivory Bug and Vitality Fragment tracking based on the settings in the Archipelago
-                gameProc.ivoryBugWatcher.Enabled = archipelago.Bugs;
-                gameProc.vitalityFragmentWatcher.Enabled = archipelago.Vitality;
-
+                
                 // Archipelago setup contains a lot of server connection and 
                 // data retrieval waiting that is better done asynchronously.
                 ConfigureArchipelagoAsync();
@@ -184,12 +180,7 @@ namespace MomodoraArchipelago
                     CreateLocationMemoryWatcherEvent
                 );
 
-                // If we are in a hard mode run, we must ban the pocket incensory in the shop
-                if (archipelago.HardMode)
-                 {
-                    SaveShopItem(19, (int) Items.ShopPlaceholder4, "Sold Out");
-                    progress.hasBoughtItem[6][2] = true;
-                }
+                BanShopItems();
 
                 // Check if we started the game in a shop room
                 if(GameInfo.shopLocations.Contains(gameProc.ReadValue<int>(gameProc.levelIDPointer)))
@@ -313,8 +304,8 @@ namespace MomodoraArchipelago
             bool res = true;
             Debug.WriteLine("Giving item id: " + id);
             
-            int inventorySize = gameProc.ReadValue<int>(gameProc.inventorySizePointer);
-            Debug.WriteLine("Inventory size: " + inventorySize);
+            int allocatedMemory = gameProc.ReadValue<int>(IntPtr.Subtract(gameProc.inventoryItemsStartPointer, 0x10));
+            Debug.WriteLine("Allocated memory: " + allocatedMemory);
             int totalItems = gameProc.ReadValue<int>(gameProc.totalItemsPointer);
             Debug.WriteLine("Total items: " + totalItems);
 
@@ -322,7 +313,7 @@ namespace MomodoraArchipelago
             {
                 AdjustVitalityFragments(1);
             }
-            else if (totalItems < inventorySize)
+            else if (totalItems * 16 != allocatedMemory)
             {
                 if ((int)Items.FragmentWarp >= id && id >= (int)Items.FragmentBowPow)
                 {
@@ -438,14 +429,11 @@ namespace MomodoraArchipelago
                     maxValuePointer = gameProc.taintedMissiveMaxValuePointer;
                     saveValuePtr = gameProc.taintedMissiveSaveValuePointer;
                     break;
-                case (int)Items.CatSphere:
-                    maxValuePointer = gameProc.catSphereMaxValuePointer;
-                    saveValuePtr = IntPtr.Zero;
-                    break;
                 case (int)Items.IvoryBug:
                     maxValuePointer = gameProc.ivoryBugCountPointer;
                     saveValuePtr = IntPtr.Zero;
                     break;
+                // Cat Sphere is a charge item with infinite chages, should handle here, but i dont have the charge amount pointer
                 default:
                     return;
             }
@@ -486,9 +474,6 @@ namespace MomodoraArchipelago
                     if (currentCharges > 0.5) return 3; // Second passiflora is worth 3
                     goto default;
 
-                case (int)Items.CatSphere:
-                    return -1; // The only item with infinite charges
-
                 default:
                     return 2; // Everything other amount/item type just adds 2 charges.
             }
@@ -514,10 +499,6 @@ namespace MomodoraArchipelago
                     break;
                 case (int)Items.IvoryBug:
                     maxValuePointer = gameProc.ivoryBugCountPointer;
-                    saveValuePtr = IntPtr.Zero;
-                    break;
-                case (int)Items.CatSphere:
-                    maxValuePointer = gameProc.catSphereMaxValuePointer;
                     saveValuePtr = IntPtr.Zero;
                     break;
                 default:
@@ -662,7 +643,7 @@ namespace MomodoraArchipelago
          * In some rooms, we track the player's Y value for various reasons.
          *   this onUpdate function combines those checks.
          */
-        private void PlayerYOnUpdate(double old, double current)
+        private void PlayerYOnUpdate(double old, double curernt)
         {
             int room = gameProc.ReadValue<int>(gameProc.levelIDPointer);
 
@@ -671,7 +652,7 @@ namespace MomodoraArchipelago
             {
                 // Turn the player into either a human or cat as appropriate
                 double playerXPos = gameProc.ReadValue<double>(gameProc.playerXPointer);
-                if (current > 195 && playerXPos > 120)
+                if (curernt > 195 && playerXPos > 120)
                 {
                     gameProc.WriteValue<double>(gameProc.playerFormPointer, 1);
                 }
@@ -850,6 +831,16 @@ namespace MomodoraArchipelago
                     shopItemNames[origin - GameInfo.originalShopItems[0][0]] = name;
                 }
             }
+        }
+
+        /*
+         * Ban disallowed items from the shop
+         */
+        private void BanShopItems()
+        {
+            // Ban the pocket incensory - because this only appears if you dont have one, we must ban it
+            SaveShopItem(19, (int) Items.ShopPlaceholder4, "Sold Out");
+            progress.hasBoughtItem[6][2] = true;
         }
 
         private void ModifyShopInventory(int room)
@@ -1168,9 +1159,9 @@ namespace MomodoraArchipelago
             var watcher = gameProc.CreateSpecialMemoryWatcher<double>(gameProc.spiderMerchantPointer, (old, current) =>
                 {
                     //SendMessage($"Spider: ({old} -> {current})."); // DEBUG
-                    if (archipelago.ShouldSpiderMerchantKill())
+                    if (archipelago.ShouldSpiderMerchantKill() && current > old)
                     {
-                        SendMessage("Died of guilt after killing an innocent Spider Merchant.");
+                        SendMessage("Killed a Spider and Died of Guilt");
                         gameProc.WriteValue<double>(gameProc.currentHealthPointer, 0);    
                     }
                 });

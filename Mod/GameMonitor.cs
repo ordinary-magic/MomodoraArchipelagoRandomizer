@@ -26,7 +26,6 @@ namespace MomodoraArchipelago
         public IntPtr taintedMissiveMaxValuePointer;
         public IntPtr passifloraSaveValuePointer;
         public IntPtr passifloraMaxValuePointer;
-        public IntPtr catSphereMaxValuePointer;
 
         // ivory bug pointers //
         public IntPtr ivoryBugCountPointer;
@@ -43,7 +42,6 @@ namespace MomodoraArchipelago
         public IntPtr activeItemsPointer;
         public IntPtr passiveItemsPointer;
         public IntPtr keyItemsPointer;
-        public IntPtr inventorySizePointer;
         public IntPtr totalItemsPointer;
         public IntPtr inventoryItemsStartPointer;
         public IntPtr inventoryItemsChargeStartPointer;
@@ -207,12 +205,10 @@ namespace MomodoraArchipelago
                     taintedMissiveSaveValuePointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0x400);
                     passifloraMaxValuePointer = IntPtr.Add((IntPtr)new DeepPointer(0x0230B134, new int[] { 0x14, 0x0 }).Deref<Int32>(gameProc), 0x580);
                     passifloraSaveValuePointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0x9d0);
-                    catSphereMaxValuePointer = IntPtr.Add((IntPtr)new DeepPointer(0x0230B134, new int[] { 0x14, 0x0 }).Deref<Int32>(gameProc), 0x940);
                     difficultyPointer = IntPtr.Add((IntPtr)new DeepPointer(0x0230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0x630);
                     maxHealthPointer = IntPtr.Add((IntPtr)new DeepPointer(0x02304CE8, new int[] { 0x4 }).Deref<Int32>(gameProc), 0xa0);
                     currentHealthPointer = (IntPtr)new DeepPointer(0x02304CE8, new int[] { 0x4 }).Deref<Int32>(gameProc);
 
-                    inventorySizePointer = IntPtr.Add((IntPtr)new DeepPointer(0x230b11c, new int[] { 0x1a4 }).Deref<Int32>(gameProc), 0x8);
                     totalItemsPointer = IntPtr.Add((IntPtr)new DeepPointer(0x230b11c, new int[] { 0x1a4 }).Deref<Int32>(gameProc), 0x4);
 
                     activeItemsPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2304ce8, new int[] { 0x4 }).Deref<Int32>(gameProc), 0xc30);
@@ -232,12 +228,12 @@ namespace MomodoraArchipelago
                     itemInfoPointer = (IntPtr)new DeepPointer(0x230B134, new int[] { 0x14 }).Deref<Int32>(gameProc);
 
                     warpStartPointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<int>(gameProc), 0xB40);
-                    playerFormPointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<int>(gameProc), 0x760);
+                    playerFormPointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4}).Deref<int>(gameProc), 0x760);
                     lubella2Pointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0x560);
 
 	                cutsceneStatePointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4 }).Deref<int>(gameProc),0xAB0);
-
                     spiderMerchantPointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<int>(gameProc), 0xD0);
+
                     #endregion
                     break;
                 case 40222720:
@@ -341,12 +337,10 @@ namespace MomodoraArchipelago
                     taintedMissiveSaveValuePointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0x400);
                     passifloraMaxValuePointer = IntPtr.Add((IntPtr)new DeepPointer(0x23782F4, new int[] { 0x14, 0x0 }).Deref<Int32>(gameProc), 0x580);
                     passifloraSaveValuePointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0x9d0);
-                    catSphereMaxValuePointer = IntPtr.Add((IntPtr)new DeepPointer(0x23782F4, new int[] { 0x14, 0x0 }).Deref<Int32>(gameProc), 0x940);
                     difficultyPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0x630);
                     maxHealthPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2371EA8, new int[] { 0x4 }).Deref<Int32>(gameProc), 0xa0);
                     currentHealthPointer = (IntPtr)new DeepPointer(0x2371EA8, new int[] { 0x4 }).Deref<Int32>(gameProc);
 
-                    inventorySizePointer = IntPtr.Add((IntPtr)new DeepPointer(0x023782DC, new int[] { 0x1ac }).Deref<Int32>(gameProc), 0x8);
                     totalItemsPointer = IntPtr.Add((IntPtr)new DeepPointer(0x023782DC, new int[] { 0x1ac }).Deref<Int32>(gameProc), 0x4);
 
                     activeItemsPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2371EA8, new int[] { 0x4 }).Deref<Int32>(gameProc), 0xc40);
@@ -385,7 +379,7 @@ namespace MomodoraArchipelago
             switch (Version)
             {
                 case 1.05:
-                    basePtr = (IntPtr)new DeepPointer(0x230B0F8, new int[] { 0x4, 0x0, 0x0 }).Deref<int>(gameProc);
+                    basePtr = (IntPtr)new DeepPointer(0x230B0F8, new int[] { 0x8, 0x0, 0x0 }).Deref<int>(gameProc);
                     itemGetStringPtrs = new IntPtr[GameInfo.GET_ITEM_STRING_AMNT];
                     //sys_dia03 ivory bug
                     itemGetStringPtrs[0] = (IntPtr)new DeepPointer(basePtr + 0xcc4, new int[] { 0xC, 0x10, 0x0 }).Deref<int>(gameProc);
@@ -453,7 +447,7 @@ namespace MomodoraArchipelago
                     itemGetStringPtrs[31] = (IntPtr)new DeepPointer(basePtr + 0x160, new int[] { 0xC, 0x10, 0x0 }).Deref<int>(gameProc);
                     break;
                 case 1.07:
-                    basePtr = (IntPtr)new DeepPointer(0x023782B8, new int[] { 0x4, 0x0, 0x0 }).Deref<int>(gameProc);
+                    basePtr = (IntPtr)new DeepPointer(0x023782B8, new int[] { 0x8, 0x0, 0x0 }).Deref<int>(gameProc);
                     itemGetStringPtrs = new IntPtr[GameInfo.GET_ITEM_STRING_AMNT];
                     //sys_dia03 ivory bug
                     itemGetStringPtrs[0] = (IntPtr)new DeepPointer(basePtr + 0xcc4, new int[] { 0xC, 0x10, 0x0 }).Deref<int>(gameProc);
@@ -528,7 +522,6 @@ namespace MomodoraArchipelago
             switch (Version)
             {
                 case 1.05:
-                    inventorySizePointer = IntPtr.Add((IntPtr)new DeepPointer(0x230b11c, new int[] { 0x1a4 }).Deref<Int32>(gameProc), 0x8);
                     totalItemsPointer = IntPtr.Add((IntPtr)new DeepPointer(0x230b11c, new int[] { 0x1a4 }).Deref<Int32>(gameProc), 0x4);
                     activeItemsPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2304ce8, new int[] { 0x4 }).Deref<Int32>(gameProc), 0xc30);
                     passiveItemsPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2304ce8, new int[] { 0x4 }).Deref<Int32>(gameProc), 0xc40);
@@ -537,7 +530,6 @@ namespace MomodoraArchipelago
                     inventoryItemsChargeStartPointer = (IntPtr)new DeepPointer(0x230b11c, new int[] { 0x1a8, 0xC }).Deref<int>(gameProc);
                     break;
                 case 1.07:
-                    inventorySizePointer = IntPtr.Add((IntPtr)new DeepPointer(0x023782DC, new int[] { 0x1ac }).Deref<Int32>(gameProc), 0x8);
                     totalItemsPointer = IntPtr.Add((IntPtr)new DeepPointer(0x023782DC, new int[] { 0x1ac }).Deref<Int32>(gameProc), 0x4);
                     activeItemsPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2371EA8, new int[] { 0x4 }).Deref<Int32>(gameProc), 0xc40);
                     passiveItemsPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2371EA8, new int[] { 0x4 }).Deref<Int32>(gameProc), 0xc50);

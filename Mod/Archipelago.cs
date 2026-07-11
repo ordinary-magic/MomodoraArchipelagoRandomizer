@@ -486,6 +486,6 @@ public class Momo4Archipelago {
 
     // Should the player be fast-killed at the specific level id
     public bool ShouldFastKill(int levelID) => ShouldKill(fastKillSetting, levelID);
-    public bool ShouldSpiderMerchantKill() => goalSetting == Goal.AllItems;
+    public bool ShouldSpiderMerchantKill() => true; // We dont actually de-prioritize these locations. //goalSetting == Goal.AllItems;
 }    
 }
