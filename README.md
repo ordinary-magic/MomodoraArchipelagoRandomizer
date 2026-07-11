@@ -3,8 +3,6 @@
 
  ## Known issues/quirks:
  Active items may have incorrect amount of uses when equipped, this is fixed when saving.
- Game may crash sometimes when opening key items menu.
- Fresh Spring Leaf may be in your inventory, but the green leaf effect is tied to a flag so unless the randomizer tells you that you have found Fresh Spring Leaf you shouldn't have it.
  
  ## Installation
  First, make sure that you have a LiveSplit installation http://livesplit.org/downloads/.
