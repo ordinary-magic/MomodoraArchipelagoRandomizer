@@ -29,6 +29,23 @@ class VitalityFragments(Toggle):
     """If this is enabled, Vitality Fragment locations will be included as checks."""
     display_name = "Include Vitality Fragments"
 
+class Stacking(Toggle):
+    """If this is enabled, Ivory Bug and Vitality Fragment drops will be grouped so that you get multiple at once,
+       and their spots in the pool will be replaced with new items instead."""
+    display_name = "Item Stacking"
+
+class Munny(Choice):
+    """If this is enabled, should we include Munny in the filler items, and how much munny should we drop?
+       If set to none, this will be banned by the filler algorightm unless we run out of other items
+       If set to standard, we will drop several 50 and 100 munny drops, some 250 drops, and one 500 drop.
+       Broke and Rich keep the same distribution, but increase or decrease the amount dropped at each tier."""
+    display_name = "Munny"
+    option_none = 0
+    option_broke = 1
+    option_standard = 2
+    option_rich = 3
+    default = 2
+
 class HardMode(Toggle):
     """Makes item logic less strict. You will have to do speedrun tech to progress.
     Specifically, no-hit boss drops and garden key skip are in logic."""
@@ -55,6 +72,8 @@ class Momo4Options(PerGameCommonOptions):
     fast_kill: FastKill
     bugs: IvoryBugs
     vitality: VitalityFragments
+    stacking: Stacking
+    munny: Munny
     hard_mode: HardMode
     deathlink: DeathLink
     dl_amount: DeathLinkAmount

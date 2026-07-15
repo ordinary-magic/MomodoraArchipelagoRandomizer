@@ -49,4 +49,5 @@ class Momo4World(World):
     def fill_slot_data(self) -> dict:
         slot_data = make_option_slot_data(self.options)
         slot_data['base_offset'] = BASE_OFFSET
+        slot_data['version'] = 10400 # 1.04.00
         return slot_data

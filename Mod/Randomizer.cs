@@ -313,6 +313,18 @@ namespace MomodoraArchipelago
             {
                 AdjustVitalityFragments(1);
             }
+            else if (id == (int)Items.VitalityChunk)
+            {
+                double fragments = gameProc.ReadValue<double>(gameProc.vitalityFragmentCountPointer);
+                AdjustVitalityFragments((fragments > 0)? 4: 5); // Since there are 17 total, the first chunk is worth an extra
+            }
+            else if (id >= (int)Items.Munny1 && id <= (int)Items.Munny999)
+            {
+                // Increase the munny amount
+                double currentMunny = gameProc.ReadValue<double>(gameProc.munnyPointer);
+                double newMunny = currentMunny + GameInfo.MunnyAmounts[id - (int)Items.Munny1];
+                gameProc.WriteValue(gameProc.munnyPointer, newMunny);
+            }
             else if (totalItems * 16 != allocatedMemory)
             {
                 if ((int)Items.FragmentWarp >= id && id >= (int)Items.FragmentBowPow)
@@ -323,7 +335,7 @@ namespace MomodoraArchipelago
                         progress.hasWarp = true;
                     }
                 }
-                else if (id == (int)Items.Bellflower || id == (int)Items.Passiflora || id == (int)Items.TaintedMissive || id == (int)Items.IvoryBug)
+                else if (id == (int)Items.Bellflower || id == (int)Items.Passiflora || id == (int)Items.TaintedMissive || id == (int)Items.IvoryBug || id == (int)Items.IvorySwarm)
                 {
                     AddChargeItem(id);
                 }
@@ -415,6 +427,7 @@ namespace MomodoraArchipelago
         private void AddChargeItem(int id)
         {
             IntPtr maxValuePointer, saveValuePtr;
+            int index = GameInfo.chargeItems.IndexOf(id);
             switch (id)
             {
                 case (int)Items.Bellflower:
@@ -433,12 +446,16 @@ namespace MomodoraArchipelago
                     maxValuePointer = gameProc.ivoryBugCountPointer;
                     saveValuePtr = IntPtr.Zero;
                     break;
+                case (int)Items.IvorySwarm:
+                    maxValuePointer = gameProc.ivoryBugCountPointer;
+                    saveValuePtr = IntPtr.Zero;
+                    index = GameInfo.chargeItems.IndexOf((int)Items.IvoryBug);
+                    break;
                 // Cat Sphere is a charge item with infinite chages, should handle here, but i dont have the charge amount pointer
                 default:
                     return;
             }
-            int j = GameInfo.chargeItems.IndexOf(id);
-            bool hasItem = progress.hasChargeItem[j];
+            bool hasItem = progress.hasChargeItem[index];
             double currentMaxCharges = hasItem? gameProc.ReadValue<double>(maxValuePointer): 0;
             int increase = GetChargeItemIncrease(id, currentMaxCharges);
 
@@ -448,8 +465,8 @@ namespace MomodoraArchipelago
 
             if (currentMaxCharges == 0 && !hasItem)
             {
-                progress.hasChargeItem[j] = true;
-                AddItem(id);
+                progress.hasChargeItem[index] = true;
+                AddItem(GameInfo.chargeItems[index]);
             }
         }
 
@@ -463,6 +480,9 @@ namespace MomodoraArchipelago
             switch (id) {
                 case (int)Items.IvoryBug:
                     return 1; // Ivory Bugs are always worth one
+
+                case (int)Items.IvorySwarm:
+                    return 5; // Ivory Swarms are always worth five
 
                 case (int)Items.Bellflower:
                     if (currentCharges < 1) return 3; // First bellflower is worth 3
@@ -860,28 +880,32 @@ namespace MomodoraArchipelago
                 pointer = IntPtr.Add((IntPtr)new DeepPointer(gameProc.shopPointer).Deref<Int32>(gameProc.gameProc), 0x10 * list[i]);// Get pointer to shop item
                 gameProc.WriteValue<double>(pointer, id);// Set shop placeholder to id
 
-                // Vitality Fragment & AP Items dont have a name or effect so we have to write to memory
-                if (shopItemsAux[i] == (int)Items.VitalityFragment || 
-                    shopItemsAux[i] == (int)Items.ArchipelagoItem ||
+                // Vitality fragment and every custom item that comes after it dont have shop names.
+                //   We also want to handle the placeholders specially too
+                if (shopItemsAux[i] >= (int)Items.VitalityFragment ||
                     GameInfo.shopPlaceholderItems.Contains(shopItemsAux[i]))
                 {
                     // Determine the item name and description
                     string name, description;
-                    if (shopItemsAux[i] == (int)Items.VitalityFragment) {
-                        // (trying to write as few bytes as possible)
-                        name = "Vit. Frag.";
-                        description = "+ Max Hp";
-                    
-                    } else if (shopItemsAux[i] == (int)Items.ArchipelagoItem){
+                    if (shopItemsAux[i] == (int)Items.ArchipelagoItem) {
                         name = "AP Item"; // Respecting short item name by storing the variable string in the description
                         // Get the replced item's id, then subtract it by id of the first shop item to get the index
                         description = shopItemNames[GameInfo.originalShopItems[currentShopLocation][i] - GameInfo.originalShopItems[0][0]];
                     
-                    } else{
+                    } else if (GameInfo.shopPlaceholderItems.Contains(shopItemsAux[i])) {
                         // If it's a placeholder item, use the placeholder info
                         int index = GameInfo.shopPlaceholderItems.IndexOf(shopItemsAux[i]);
                         name = GameInfo.placeholderShopNames[index];
                         description = GameInfo.placeholderShopDescription[index];
+
+                    } else {
+                        // Otherwise, its a sepcial item. Use the name we saved when constructing the shop
+                        name = shopItemNames[GameInfo.originalShopItems[currentShopLocation][i] - GameInfo.originalShopItems[0][0]];
+
+                        // Check if we have a custom description for it
+                        if (GameInfo.customItemShopDescriptions.TryGetValue(shopItemsAux[i], out string cDescription))
+                            description = cDescription;
+                        else description = name; // Otherwise, just use the name as the description
                     }
 
                     bytes = Encoding.ASCII.GetBytes(name);

@@ -55,7 +55,19 @@ namespace MomodoraArchipelago
         FragmentDash = 52,
         FragmentWarp = 53,
         VitalityFragment = 54,
-        // The following are flages used by the randomizer
+        
+        // The following are "items" which do not exist in the base game
+        Munny1 = 56,
+        Munny10 = 57,
+        Munny50 = 58,
+        Munny100 = 59,
+        Munny250 = 60,
+        Munny500 = 61,
+        Munny999 = 62,
+        IvorySwarm = 63,
+        VitalityChunk = 64,
+
+        // Randomizer flags
         ArchipelagoItem = 254,
         None = 255 // Placeholder item type
     };
@@ -364,5 +376,16 @@ namespace MomodoraArchipelago
         public static readonly List<string> placeholderShopDescription = new List<string> {
             "Placeholder #1", "Placeholder #2", "Placeholder #3", "Sorry!",
         };
+
+        // Mapping of custom item ids to their shop descriptions
+        public static readonly Dictionary<int, string> customItemShopDescriptions = new Dictionary<int, string> {
+            { (int) Items.IvorySwarm, "5 Ivory Bugs" },
+            { (int) Items.VitalityFragment, "+ Max HP" }, // Does not have a description in the game, so we need to make one.
+            { (int) Items.VitalityChunk, "++ Max HP" },
+        };
+
+        // Ordered amount of munny to drop for each munny item.
+        public static readonly List<int> MunnyAmounts = 
+            new List<int> { 1, 10, 50, 100, 250, 500, 999 };
     }
 }

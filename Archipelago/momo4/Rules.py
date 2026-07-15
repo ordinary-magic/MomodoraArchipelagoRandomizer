@@ -1,6 +1,6 @@
 from BaseClasses import CollectionState, MultiWorld # type: ignore
 from ..generic.Rules import add_rule # type: ignore
-from .Items import create_item
+from .Items import create_item, RequiredItemCounts
 from .Locations import is_valid_location_name
 from .Settings import Momo4Options
 
@@ -89,22 +89,18 @@ def set_rules(world: MultiWorld, player: int, options: Momo4Options):
     ### Ivory Bugs (and related items) ###
     if options.bugs:
         # Ensure logic knows how many bugs the rewards cost
-        add_rule(world.get_location('10 Ivory Bug Reward', player), lambda state: state.has("Ivory Bug", player, 10))
-        add_rule(world.get_location('15 Ivory Bug Reward', player), lambda state: state.has("Ivory Bug", player, 15))
-        add_rule(world.get_location('20 Ivory Bug Reward', player), lambda state: state.has("Ivory Bug", player, 20))
+        add_rule(world.get_location('10 Ivory Bug Reward', player), get_ivory_bug_rule(player, 10))
+        add_rule(world.get_location('15 Ivory Bug Reward', player), get_ivory_bug_rule(player, 15))
+        add_rule(world.get_location('20 Ivory Bug Reward', player), get_ivory_bug_rule(player, 20))
 
         # And the bonus badge trade step
         add_rule(world.get_location('Eri - Hazel Badge', player), lambda state: state.has("Hazel Badge", player))
 
     ### Victory Conditions ###
     world.get_location('Final Boss - Accurst Queen of Karst', player).place_locked_item(create_item('Final Boss Clear', player))
-
-    # Add the true ending spring leaf rule
-    if options.goal.value == 1:
-        add_rule(world.get_location('Final Boss - Accurst Queen of Karst', player), lambda state: state.has("Fresh Spring Leaf", player))
-
-    # Boss clear implicitly checks victory rules in the client
-    world.completion_condition[player] = lambda state: state.has("Final Boss Clear", player)
+    
+    # Add the world clear condition
+    world.completion_condition[player] = get_win_rule(player, options, RequiredItemCounts)
 
     ### DEBUG ### - makes a cool uml diagram in the archipelago folder
     #from Utils import visualize_regions
@@ -153,3 +149,35 @@ def get_region_locking_rule(player, options, region_from, region_to):
 
     # If no explicit rule is found, progress is always allowed
     return lambda _: True
+
+def get_ivory_bug_rule(player: int, amount: int):
+    '''Get a rule that only allows a drop if the player has the requisite number of ivory bugs.'''
+
+    def rule(state: CollectionState) -> bool:
+        return state.has("Ivory Bug", player, amount) or \
+               state.has("Ivory Swarm", player, amount / 5)
+
+    return rule
+
+def get_win_rule(player: int, options: Momo4Options, required_items: list[tuple[str, int]]):
+    '''Construct the rule which lets us win this game'''
+
+    def rule(state: CollectionState) -> bool:
+        # First, all runs must defeat the final boss
+        if not state.has("Final Boss Clear", player):
+            return False
+        
+        # Second, true ending runs need the fresh spring leaf
+        if options.goal.value == 1 and not state.has("Fresh Spring Leaf", player):
+            return False
+        
+        # Third, in 100% mode, we must also have checked every single required item
+        if options.goal.value == 2:
+            for item, amount in required_items:
+                if not state.has(item, player, amount):
+                    return False
+        
+        # If every condition is met, we have won
+        return True
+    
+    return rule

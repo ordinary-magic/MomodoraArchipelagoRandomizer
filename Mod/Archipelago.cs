@@ -34,6 +34,7 @@ public class Momo4Archipelago {
 
     // Constants
     public static readonly int FINAL_BOSS_LOCATION = GameInfo.RANDOMIZER_SOURCE_AMOUNT;
+    public const int PROTOCOL_VERISON = 10400; // 1.04.00
 
     // Delegates
     public delegate void GiveItemDelegate(int id);
@@ -105,6 +106,19 @@ public class Momo4Archipelago {
         goalSetting = (Goal)Convert.ToInt32(slotData["goal"]);
         fastKillSetting = (Kill)Convert.ToInt32(slotData["fast_kill"]);
         apBaseIDOffset = Convert.ToInt64(slotData["base_offset"]);
+
+        // Check if the version matches
+        int serverVersion = 0;
+        if (slotData.TryGetValue("version", out object ver))
+            serverVersion = Convert.ToInt32(ver);
+        
+        // This is fine, we are designed to be backwards compatible
+        if (serverVersion <= PROTOCOL_VERISON)
+            SendMessage("INFO: Apworld can be updated.");
+
+        // This is potentially breaking
+        else if (serverVersion >= PROTOCOL_VERISON)
+            SendMessage("WARNING: Game Mod is out of date!");
         
         // Check if we are in hard mode (must use ContainsKey since old server versions dont have this)
         if (slotData.ContainsKey("hard_mode"))
