@@ -180,6 +180,9 @@ namespace MomodoraArchipelago
                     CreateLocationMemoryWatcherEvent
                 );
 
+                // Create the injection harness
+                InjectionHarness.CreateInjection(gameProc.gameProc);
+
                 BanShopItems();
 
                 // Check if we started the game in a shop room
