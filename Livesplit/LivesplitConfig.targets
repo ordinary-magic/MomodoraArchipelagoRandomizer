@@ -1,0 +1,7 @@
+<!-- NOTE: THIS FILE IS NOT SAVED IN GIT, YOU CAN CHANGE IT FREELY -->
+<Project>
+  <PropertyGroup Label="UserMacros">
+    <!--The full path to your livesplit folder, used to automatically copy the build. -->
+    <LivesplitPath>C:\Apps\LiveSplit_1.8.29</LivesplitPath>
+  </PropertyGroup>
+</Project>

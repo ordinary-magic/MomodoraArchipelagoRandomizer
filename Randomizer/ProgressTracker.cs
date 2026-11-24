@@ -2,11 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace MomodoraArchipelago
+namespace Momo4Randomizer
 {
-    /**
-     * Convenient class to track the progress of the run.
-     */
+
+    /// <summary>
+    /// Class to track run state information, split off from the randomizer.
+    /// </summary>
     public class ProgressTracker
     {
         public List<bool> hasChargeItem;
@@ -32,7 +33,7 @@ namespace MomodoraArchipelago
 
             hasKey = Enumerable.Repeat(false, GameInfo.doorKeys.Count).ToList();
             hasSavedKey = new List<bool>(hasKey);
-            
+
             hasBathedLeaf = false;
             hasSavedBathedLeaf = false;
             hasFoundGreenLeaf = false;
@@ -43,57 +44,57 @@ namespace MomodoraArchipelago
             hasSavedCatSphere = false;
 
             hasBoughtItem = new List<List<bool>>
-            {
-                new List<bool> { false, false, false },
-                new List<bool> { false },
-                new List<bool> { false, false },
-                new List<bool> { false },
-                new List<bool> { false, false },
-                new List<bool> { false, false, false },
-                new List<bool> { false, false, false } // Pocket Incensory is banned from the shop to avoid accidental duplicates
-            };
+        {
+            new List<bool> { false, false, false },
+            new List<bool> { false },
+            new List<bool> { false, false },
+            new List<bool> { false },
+            new List<bool> { false, false },
+            new List<bool> { false, false, false },
+            new List<bool> { false, false, false } // Pocket Incensory is banned from the shop to avoid accidental duplicates
+        };
             hasSavedBoughtItem = new List<List<bool>>
-            {
-                new List<bool> { false, false, false },
-                new List<bool> { false },
-                new List<bool> { false, false },
-                new List<bool> { false },
-                new List<bool> { false, false },
-                new List<bool> { false, false, false },
-                new List<bool> { false, false, false } // Pocket Incensory is banned from the shop to avoid accidental duplicates
-            };
+        {
+            new List<bool> { false, false, false },
+            new List<bool> { false },
+            new List<bool> { false, false },
+            new List<bool> { false },
+            new List<bool> { false, false },
+            new List<bool> { false, false, false },
+            new List<bool> { false, false, false } // Pocket Incensory is banned from the shop to avoid accidental duplicates
+        };
         }
 
         /*
-         * Load saved state data from archipelago connection
-         */
-        public void LoadRandomizerState(Momo4Archipelago archipelago, Action<string> log)
+            * Load saved state data from archipelago connection
+            */
+        public void LoadRandomizerState(ArchipelagoClient archipelago, Action<string> log)
         {
             hasChargeItem = archipelago.HasItems(GameInfo.chargeItems);
             hasKey = archipelago.HasItems(GameInfo.doorKeys);
             hasBathedLeaf = archipelago.HasLocation(GameInfo.sourceIdMapping.First(pair => pair.Value == (int)Items.FreshSpringLeaf).Key);
-            hasFoundGreenLeaf = archipelago.HasItem((int) Items.FreshSpringLeaf);
-            hasWarp = archipelago.HasItem((int) Items.FragmentWarp);
-            hasCatSphere = archipelago.HasItem((int) Items.CatSphere);
+            hasFoundGreenLeaf = archipelago.HasItem((int)Items.FreshSpringLeaf);
+            hasWarp = archipelago.HasItem((int)Items.FragmentWarp);
+            hasCatSphere = archipelago.HasItem((int)Items.CatSphere);
             hasBoughtItem = archipelago.GetBoughtItems(GameInfo.originalShopItems);
             SaveVariables(log);
         }
 
         /*
-         * Mark pending state updates as "saved" as the game is saved
-         */
+            * Mark pending state updates as "saved" as the game is saved
+            */
         public void SaveVariables(Action<string> log)
         {
             log("\nSaving variables\n");
             log("Item Charges & keys:\n");
             for (int i = 0; i < hasChargeItem.Count; i++)
             {
-                log("SavedChargeItem[" + i+"]: " + hasSavedChargeItem[i] + " = ChargeItem["+i+"]: " + hasChargeItem[i] + "\n");
+                log("SavedChargeItem[" + i + "]: " + hasSavedChargeItem[i] + " = ChargeItem[" + i + "]: " + hasChargeItem[i] + "\n");
                 hasSavedChargeItem[i] = hasChargeItem[i];
             }
             for (int i = 0; i < hasSavedKey.Count; i++)
             {
-                log("SavedKey["+i+"]: " + hasSavedKey[i] + " = Key["+i+"]: " + hasKey[i] + "\n");
+                log("SavedKey[" + i + "]: " + hasSavedKey[i] + " = Key[" + i + "]: " + hasKey[i] + "\n");
                 hasSavedKey[i] = hasKey[i];
             }
             log("\nShop items:\n");
@@ -102,8 +103,8 @@ namespace MomodoraArchipelago
                 log("\n" + Enum.GetName(typeof(Shops), i) + " shop:\n");
                 for (int j = 0; j < hasBoughtItem[i].Count; j++)
                 {
-                    log("SavedItemBought["+i+"]["+j+"]: " + hasSavedBoughtItem[i][j] +
-                               " = ItemBought["+i+"]["+j+"]: " + hasBoughtItem[i][j] + "\n");
+                    log("SavedItemBought[" + i + "][" + j + "]: " + hasSavedBoughtItem[i][j] +
+                                " = ItemBought[" + i + "][" + j + "]: " + hasBoughtItem[i][j] + "\n");
                     hasSavedBoughtItem[i][j] = hasBoughtItem[i][j];
                 }
             }
@@ -119,16 +120,16 @@ namespace MomodoraArchipelago
         }
 
         /*
-         * Load the "saved" values into the current ones, such as when we die and lose unsaved progress
-         */
+            * Load the "saved" values into the current ones, such as when we die and lose unsaved progress
+            */
         public void LoadVariables(Action<string> log)
         {
             log("\nLoading saved variables\n");
             log("Item Charges & keys:\n");
             for (int i = 0; i < hasChargeItem.Count(); i++)
             {
-                log("ChargeItem["+i+"]: " + hasChargeItem[i] + " = SavedChargeItem["+i+"]: " + hasSavedChargeItem[i] + "\n");
-                log("Key["+i+"]: " + hasKey[i] +  " = SavedKey["+i+"]: " + hasSavedKey[i] + "\n");
+                log("ChargeItem[" + i + "]: " + hasChargeItem[i] + " = SavedChargeItem[" + i + "]: " + hasSavedChargeItem[i] + "\n");
+                log("Key[" + i + "]: " + hasKey[i] + " = SavedKey[" + i + "]: " + hasSavedKey[i] + "\n");
                 hasChargeItem[i] = hasSavedChargeItem[i];
                 hasKey[i] = hasSavedKey[i];
             }
@@ -138,8 +139,8 @@ namespace MomodoraArchipelago
                 log("\n" + Enum.GetName(typeof(Shops), i) + " shop:\n");
                 for (int j = 0; j < hasBoughtItem[i].Count(); j++)
                 {
-                    log("hasBoughtItem["+i+"]["+j+"]: " + hasBoughtItem[i][j] + 
-                               " = Saved["+i+"]["+j+"]: " + hasSavedBoughtItem[i][j] + "\n");
+                    log("hasBoughtItem[" + i + "][" + j + "]: " + hasBoughtItem[i][j] +
+                                " = Saved[" + i + "][" + j + "]: " + hasSavedBoughtItem[i][j] + "\n");
                     hasBoughtItem[i][j] = hasSavedBoughtItem[i][j];
                 }
             }

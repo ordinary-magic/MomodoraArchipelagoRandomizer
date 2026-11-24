@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../Momo4Randomizer.common.targets" />
+  <Import Project="LivesplitConfig.targets" />
+  <PropertyGroup>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="$(RandomizerDll)"/>
+    <Reference Include="$(LivesplitPath)\CustomFontDialog.dll"/>
+    <Reference Include="$(LivesplitPath)\LiveSplit.Core.dll"/>
+    <Reference Include="$(LivesplitPath)\Components\LiveSplit.Text.dll" />
+    <Reference Include="$(LivesplitPath)\UpdateManager.dll"/>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="update.MomodoraArchipelagoRandomizer.xml" />
+  </ItemGroup>
+  <!--Copy the built dll, and all non-livesplit dependencies to the build folder -->
+  <Target Name="CopyToBuildFolder" AfterTargets="Build">
+      <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(BuildPath)\Livesplit" />
+      <Copy SourceFiles="$(TargetDir)Momo4ApRandomizer.dll" DestinationFolder="$(BuildPath)\Livesplit" />
+      <Copy SourceFiles="$(TargetDir)Archipelago.MultiClient.Net.dll" DestinationFolder="$(BuildPath)\Livesplit" />
+      <Copy SourceFiles="$(TargetDir)Newtonsoft.Json.dll" DestinationFolder="$(BuildPath)\Livesplit" />
+  </Target>
+  <!--Copy the contents of the build folder to the livesplit folder-->
+  <Target Name="CopyToLivesplit" AfterTargets="CopyToBuildFolder">
+      <ItemGroup>
+        <Dlls Include="$(BuildPath)\Livesplit\*.dll" />
+      </ItemGroup>
+      <Copy SourceFiles="@(Dlls)" DestinationFolder="$(LivesplitPath)\Components" />
+  </Target>
+</Project>

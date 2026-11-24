@@ -1,7 +1,6 @@
-﻿
-namespace LiveSplit.UI.Components
+﻿namespace LiveSplit.UI.Components
 {
-    partial class MomodoraArchipelagoRandomizerSettings
+    partial class RandomizerSettings
     {
         /// <summary> 
         /// Required designer variable.
@@ -331,7 +330,7 @@ namespace LiveSplit.UI.Components
             // 
             // btnTextColor
             // 
-            this.btnTextColor.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            this.btnTextColor.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
             | System.Windows.Forms.AnchorStyles.Left)));
             this.btnTextColor.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
             this.btnTextColor.Location = new System.Drawing.Point(423, 3);
@@ -363,7 +362,7 @@ namespace LiveSplit.UI.Components
             // 
             // btnShadowColor
             // 
-            this.btnShadowColor.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            this.btnShadowColor.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
             | System.Windows.Forms.AnchorStyles.Left)));
             this.btnShadowColor.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
             this.btnShadowColor.Location = new System.Drawing.Point(160, 31);
@@ -385,7 +384,7 @@ namespace LiveSplit.UI.Components
             // 
             // btnOutlineColor
             // 
-            this.btnOutlineColor.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            this.btnOutlineColor.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
             | System.Windows.Forms.AnchorStyles.Left)));
             this.btnOutlineColor.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
             this.btnOutlineColor.Location = new System.Drawing.Point(423, 31);
@@ -437,7 +436,7 @@ namespace LiveSplit.UI.Components
             // 
             // btnColor1
             // 
-            this.btnColor1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            this.btnColor1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
             | System.Windows.Forms.AnchorStyles.Left)));
             this.btnColor1.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
             this.btnColor1.Location = new System.Drawing.Point(164, 3);
@@ -459,7 +458,7 @@ namespace LiveSplit.UI.Components
             // 
             // btnColor2
             // 
-            this.btnColor2.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            this.btnColor2.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
             | System.Windows.Forms.AnchorStyles.Left)));
             this.btnColor2.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
             this.btnColor2.Location = new System.Drawing.Point(194, 3);
@@ -475,9 +474,9 @@ namespace LiveSplit.UI.Components
             this.cmbGradientType.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cmbGradientType.FormattingEnabled = true;
             this.cmbGradientType.Items.AddRange(new object[] {
-            "Plain",
-            "Vertical",
-            "Horizontal"});
+        "Plain",
+        "Vertical",
+        "Horizontal"});
             this.cmbGradientType.Location = new System.Drawing.Point(225, 4);
             this.cmbGradientType.Name = "cmbGradientType";
             this.cmbGradientType.Size = new System.Drawing.Size(232, 21);

@@ -1,12 +1,11 @@
 ﻿using LiveSplit.Model;
-using MomodoraArchipelago;
 using System;
 
 namespace LiveSplit.UI.Components
 {
     class MomodoraArchipelagoRandomizerFactory : IComponentFactory
     {
-        public string ComponentName => "Momodora RUtM Archipelago Randomizer";
+        public string ComponentName => "Momodora RUtM Archipelago";
 
         public string Description => "A fun and exciting archipelago randomizer for Momodora: Reverie Under the Moonlight";
 
@@ -22,7 +21,7 @@ namespace LiveSplit.UI.Components
 
         public IComponent Create(LiveSplitState state)
         {
-            return new Randomizer(state);
+            return new LivesplitClient(state);
         }
     }
 }

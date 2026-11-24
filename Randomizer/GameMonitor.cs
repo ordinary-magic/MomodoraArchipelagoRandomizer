@@ -3,21 +3,22 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using LiveSplit.ComponentUtil;
 
-namespace MomodoraArchipelago
+namespace Momo4Randomizer
 {
+
     /**
-     * Class to track the game's proccess and memory state
+     * Container class for the game's proccess and memory state operations, after being split from the randomizer.
      */
     public class GameMonitor
     {
         public readonly Process gameProc;
         public double Version;
-        
+
         // Pointers //
 
-        public IntPtr[] itemGetStringPtrs;
+        public IntPtr[] itemGetStringPtrs = new IntPtr[GameInfo.GET_ITEM_STRING_AMNT];
 
-        public IntPtr[] potentialSourcesPointers;
+        public IntPtr[] potentialSourcesPointers = new IntPtr[GameInfo.RANDOMIZER_SOURCE_AMOUNT];
 
         // charge item pointers //
         public IntPtr bellflowerSaveValuePointer;
@@ -81,9 +82,9 @@ namespace MomodoraArchipelago
         public MemoryWatcher<double> saveWatcher;
         public MemoryWatcher<double> inGameWatcher;
         public MemoryWatcher<double> convOpenWatcher;
-        public MemoryWatcher<double> playerYWatcher;
+        public MemoryWatcher<double> playerYWatcher; // Not set during initializaiton, watch for null
         public MemoryWatcher<double> currentHealthWatcher;
-        
+
         private MemoryWatcherList randoSourceWatchers = new MemoryWatcherList();
         private MemoryWatcherList specialWatchers = new MemoryWatcherList();
         private MemoryWatcherList chargeItems = new MemoryWatcherList();
@@ -110,7 +111,6 @@ namespace MomodoraArchipelago
                     Debug.WriteLine("Setting up pointers");
                     Version = 1.05;
                     #region setting up IntPtrs
-                    potentialSourcesPointers = new IntPtr[GameInfo.RANDOMIZER_SOURCE_AMOUNT];
                     potentialSourcesPointers[0] = IntPtr.Add((IntPtr)new DeepPointer(0x0230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0xF0);
                     potentialSourcesPointers[1] = IntPtr.Add((IntPtr)new DeepPointer(0x0230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0x100);
                     potentialSourcesPointers[2] = IntPtr.Add((IntPtr)new DeepPointer(0x0230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0x410);
@@ -220,7 +220,7 @@ namespace MomodoraArchipelago
                     deathAmountPointer = IntPtr.Add((IntPtr)new DeepPointer(0x02304CE8, new int[] { 0x4 }).Deref<int>(gameProc), 0x540);
                     inGamePointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4 }).Deref<int>(gameProc), 0x780);
                     saveAmountPointer = (IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<int>(gameProc);
-                    
+
                     munnyPointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4 }).Deref<int>(gameProc), 0x550);
                     invOpenPointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4 }).Deref<int>(gameProc), 0xAC0);
                     convOpenPointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4 }).Deref<int>(gameProc), 0x660);
@@ -228,10 +228,10 @@ namespace MomodoraArchipelago
                     itemInfoPointer = (IntPtr)new DeepPointer(0x230B134, new int[] { 0x14 }).Deref<Int32>(gameProc);
 
                     warpStartPointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<int>(gameProc), 0xB40);
-                    playerFormPointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4}).Deref<int>(gameProc), 0x760);
+                    playerFormPointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<int>(gameProc), 0x760);
                     lubella2Pointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0x560);
 
-	                cutsceneStatePointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4 }).Deref<int>(gameProc),0xAB0);
+                    cutsceneStatePointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4 }).Deref<int>(gameProc), 0xAB0);
                     spiderMerchantPointer = IntPtr.Add((IntPtr)new DeepPointer(0x230C440, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<int>(gameProc), 0xD0);
 
                     #endregion
@@ -241,8 +241,7 @@ namespace MomodoraArchipelago
                     Debug.WriteLine("Version 1.07 detected");
                     Debug.WriteLine("Setting up pointers");
                     Version = 1.07;
-                    #region setting up IntPtrs
-                    potentialSourcesPointers = new IntPtr[GameInfo.RANDOMIZER_SOURCE_AMOUNT];
+                    #region setting up IntPtrs\
                     potentialSourcesPointers[0] = IntPtr.Add((IntPtr)new DeepPointer(0x02379600, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0xF0);
                     potentialSourcesPointers[1] = IntPtr.Add((IntPtr)new DeepPointer(0x02379600, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0x100);
                     potentialSourcesPointers[2] = IntPtr.Add((IntPtr)new DeepPointer(0x02379600, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0x410);
@@ -352,7 +351,7 @@ namespace MomodoraArchipelago
                     deathAmountPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2371EA8, new int[] { 0x4 }).Deref<int>(gameProc), 0x530);
                     inGamePointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4 }).Deref<int>(gameProc), 0x790);
                     saveAmountPointer = (IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<int>(gameProc);
-                    
+
                     munnyPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4 }).Deref<int>(gameProc), 0x540);
                     invOpenPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4 }).Deref<int>(gameProc), 0xAD0);
                     convOpenPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4 }).Deref<int>(gameProc), 0x670);
@@ -362,8 +361,8 @@ namespace MomodoraArchipelago
                     warpStartPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<int>(gameProc), 0xB40);
                     playerFormPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<int>(gameProc), 0x760);
                     lubella2Pointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<Int32>(gameProc), 0x560);
-                    
-	                cutsceneStatePointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4 }).Deref<int>(gameProc),0xAC0);
+
+                    cutsceneStatePointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4 }).Deref<int>(gameProc), 0xAC0);
                     spiderMerchantPointer = IntPtr.Add((IntPtr)new DeepPointer(0x2379600, new int[] { 0x0, 0x4, 0x60, 0x4, 0x4 }).Deref<int>(gameProc), 0xD0);
                     #endregion
                     break;
@@ -380,7 +379,6 @@ namespace MomodoraArchipelago
             {
                 case 1.05:
                     basePtr = (IntPtr)new DeepPointer(0x230B0F8, new int[] { 0x8, 0x0, 0x0 }).Deref<int>(gameProc);
-                    itemGetStringPtrs = new IntPtr[GameInfo.GET_ITEM_STRING_AMNT];
                     //sys_dia03 ivory bug
                     itemGetStringPtrs[0] = (IntPtr)new DeepPointer(basePtr + 0xcc4, new int[] { 0xC, 0x10, 0x0 }).Deref<int>(gameProc);
                     //sys_dia04 Bellflower
@@ -448,7 +446,6 @@ namespace MomodoraArchipelago
                     break;
                 case 1.07:
                     basePtr = (IntPtr)new DeepPointer(0x023782B8, new int[] { 0x8, 0x0, 0x0 }).Deref<int>(gameProc);
-                    itemGetStringPtrs = new IntPtr[GameInfo.GET_ITEM_STRING_AMNT];
                     //sys_dia03 ivory bug
                     itemGetStringPtrs[0] = (IntPtr)new DeepPointer(basePtr + 0xcc4, new int[] { 0xC, 0x10, 0x0 }).Deref<int>(gameProc);
                     //sys_dia04 Bellflower
@@ -545,6 +542,10 @@ namespace MomodoraArchipelago
             return gameProc != null && !gameProc.HasExited;
         }
 
+        /// <summary>
+        /// Try to connect to the game.
+        /// </summary>
+        /// <returns>A game monitor if successfull, or null otherwise.</returns>
         public static GameMonitor TryConnectToGame()
         {
             Process[] game = Process.GetProcessesByName("MomodoraRUtM");
@@ -555,17 +556,17 @@ namespace MomodoraArchipelago
             return null;
         }
 
-        public int Difficulty => (int) gameProc.ReadValue<double>(difficultyPointer);
+        public int Difficulty => (int)gameProc.ReadValue<double>(difficultyPointer);
 
         /**
-         * Create a memory watcher using the provided settings
-         */
-        public MemoryWatcher<T> InitializeMemoryWatcher<T>(IntPtr address, bool enabled=true, TimeSpan? interval=null, Action<T, T> onChanged=null) where T: struct
+            * Create a memory watcher using the provided settings
+            */
+        public MemoryWatcher<T> InitializeMemoryWatcher<T>(IntPtr address, bool enabled = true, int millesecondInterval = 500000, Action<T, T> onChanged = null) where T : struct
         {
             var watcher = new MemoryWatcher<T>(address)
             {
                 Enabled = enabled,
-                UpdateInterval = interval,
+                UpdateInterval = new TimeSpan(0, 0, 0, 0, millesecondInterval),
             };
 
             if (onChanged != null)
@@ -580,43 +581,43 @@ namespace MomodoraArchipelago
             bellflowerWatcher = InitializeMemoryWatcher<double>(bellflowerMaxValuePointer);
             passifloraWatcher = InitializeMemoryWatcher<double>(passifloraMaxValuePointer);
             ivoryBugWatcher = InitializeMemoryWatcher<double>(ivoryBugCountPointer);
-            crestFragmentWatcher =InitializeMemoryWatcher<double>(crestFragmentCountPointer);
+            crestFragmentWatcher = InitializeMemoryWatcher<double>(crestFragmentCountPointer);
             vitalityFragmentWatcher = InitializeMemoryWatcher<double>(vitalityFragmentCountPointer);
 
             // Add them all to the list
             chargeItems.AddRange(new List<MemoryWatcher<double>> {
-                taintedMissiveWatcher, bellflowerWatcher, passifloraWatcher, ivoryBugWatcher, crestFragmentWatcher, vitalityFragmentWatcher
-            });
+            taintedMissiveWatcher, bellflowerWatcher, passifloraWatcher, ivoryBugWatcher, crestFragmentWatcher, vitalityFragmentWatcher
+        });
 
             UpdateChargeItemWatchers(); // Set the initial values the list
         }
-        
+
         /**
-         * Update all the charge item memory watchers to see if any of the values changed since the last check
-         */
+            * Update all the charge item memory watchers to see if any of the values changed since the last check
+            */
         public void UpdateChargeItemWatchers() => chargeItems.UpdateAll(gameProc);
 
         /**
-         * Create and register a watcher for a randomizer source location
-         */
+            * Create and register a watcher for a randomizer source location
+            */
         public MemoryWatcher<double> CreateRandomizerSourceWatcher(IntPtr addr, Action<double, double> onChanged = null)
         {
-            var watcher = InitializeMemoryWatcher(addr, true, new TimeSpan(0, 0, 0, 0, 10), onChanged);
+            var watcher = InitializeMemoryWatcher(addr, true, 10, onChanged);
             randoSourceWatchers.Add(watcher);
             return watcher;
         }
 
         /**
-         * Update all the randomizer source memory watchers to see if any of the values changed since the last check
-         */
+            * Update all the randomizer source memory watchers to see if any of the values changed since the last check
+            */
         public void UpdateRandomizerSourceWatchers() => randoSourceWatchers.UpdateAll(gameProc);
 
         /**
-         * Create a special memory watcher and register it with the monitor.
-         */
-        public MemoryWatcher<T> CreateSpecialMemoryWatcher<T>(IntPtr addr, Action<T, T> onChanged = null) where T: struct
+            * Create a special memory watcher and register it with the monitor.
+            */
+        public MemoryWatcher<T> CreateSpecialMemoryWatcher<T>(IntPtr addr, Action<T, T> onChanged = null) where T : struct
         {
-            var watcher = InitializeMemoryWatcher(addr, true, new TimeSpan(0, 0, 0, 0, 10), onChanged);
+            var watcher = InitializeMemoryWatcher(addr, true, 10, onChanged);
             specialWatchers.Add(watcher);
             return watcher;
         }
@@ -633,9 +634,9 @@ namespace MomodoraArchipelago
         }
 
         /**
-         * Setup the player x and y pointers, and the player y watcher.
-         *   These need to be deferrred until the player is active in the game.
-         */
+        * Setup the player x and y pointers, and the player y watcher.
+        *   These need to be deferrred until the player is active in the game.
+        */
         public void SetupPlayerPositionMonitor()
         {
             switch (Version)
@@ -645,7 +646,7 @@ namespace MomodoraArchipelago
                     playerYPointer = IntPtr.Add((IntPtr)new DeepPointer(0x0253597C, new int[] { 0xC, 0xBC, 0x8, 0x4 }).Deref<int>(gameProc), 0x130);
                     break;
                 case 1.07:
-                    playerXPointer = IntPtr.Add((IntPtr)new DeepPointer(0x025A2B3C, new int[] { 0xC, 0xBC, 0x8, 0x4}).Deref<int>(gameProc), 0x120);
+                    playerXPointer = IntPtr.Add((IntPtr)new DeepPointer(0x025A2B3C, new int[] { 0xC, 0xBC, 0x8, 0x4 }).Deref<int>(gameProc), 0x120);
                     playerYPointer = IntPtr.Add((IntPtr)new DeepPointer(0x025A2B3C, new int[] { 0xC, 0xBC, 0x8, 0x4 }).Deref<int>(gameProc), 0x130);
                     break;
             }
@@ -653,13 +654,13 @@ namespace MomodoraArchipelago
         }
 
         /**
-         * Update all the misc special memory watchers to see if any of the values changed since the last check
-         */
+            * Update all the misc special memory watchers to see if any of the values changed since the last check
+            */
         public void UpdateSpecialWatchers() => specialWatchers.UpdateAll(gameProc);
 
-        public T ReadValue<T>(IntPtr addr) where T: struct => gameProc.ReadValue<T>(addr);
+        public T ReadValue<T>(IntPtr addr) where T : struct => gameProc.ReadValue<T>(addr);
 
-        public void WriteValue<T>(IntPtr addr, T value) where T: struct => gameProc.WriteValue(addr, value);
+        public void WriteValue<T>(IntPtr addr, T value) where T : struct => gameProc.WriteValue(addr, value);
 
         public void WriteBytes(IntPtr addr, byte[] bytes) => gameProc.WriteBytes(addr, bytes);
 

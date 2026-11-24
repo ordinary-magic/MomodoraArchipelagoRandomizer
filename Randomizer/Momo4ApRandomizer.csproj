@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../Momo4Randomizer.common.targets" />
+  <!--Todo: remove livesplit dependency-->
+  <Import Project="../Livesplit/LivesplitConfig.targets" />
+  <PropertyGroup>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+  <ItemGroup>
+    <!--Todo: abstract out the game monitor and remove the livesplit dependency. -->
+    <Reference Include="$(LivesplitPath)\LiveSplit.Core.dll">  
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Reference>
+    <PackageReference Include="Archipelago.MultiClient.Net" Version="6.6.0" />
+  </ItemGroup>
+</Project>

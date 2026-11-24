@@ -1,121 +1,66 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
 using System.Linq;
 using System.Text;
-using System.Xml;
-using System.Windows.Forms;
 using LiveSplit.ComponentUtil;
-using LiveSplit.Model;
-using LiveSplit.UI;
-using LiveSplit.UI.Components;
-using System.Drawing.Drawing2D;
-using System.IO;
+using System.Threading.Tasks;
 
-namespace MomodoraArchipelago
+namespace Momo4Randomizer
 {
-    public class Randomizer : IComponent
+    public class Randomizer
     {
-        // Controls and Connections //
-        private SimpleLabel RandomizerLabel;
-        private MomodoraArchipelagoRandomizerSettings settingsControl;
-        public LiveSplitState state;
-        private Momo4Archipelago archipelago;
-        private readonly object inventoryLock;
+        // Communication Objects //
         private GameMonitor gameProc;
+        private ArchipelagoClient archipelago;
+        private Action<string> ShowMessage;
+        private Action<string> LogMessage;
 
         // Randomizer State //
-        private bool randomizerRunning;
         private bool shopping = false;
         private readonly List<int> deferredItemQueue = new List<int>();
         private string deferredDeathCause = null;
+        private readonly object inventoryLock = new object();
         private ProgressTracker progress = new ProgressTracker();
-        
+
         // Shop Randomization State //
         public string[] shopItemNames = new string[GameInfo.SHOP_SIZE];
         public List<List<int>> shopItems = new List<List<int>> {
-            new List<int> {8, 9, 10},
-            new List<int> {9},
-            new List<int> {11, 12},
-            new List<int> {13},
-            new List<int> {14, 10},
-            new List<int> {15, 10, 16},
-            new List<int> {17, 18, 19}
-        };
+        new List<int> {8, 9, 10},
+        new List<int> {9},
+        new List<int> {11, 12},
+        new List<int> {13},
+        new List<int> {14, 10},
+        new List<int> {15, 10, 16},
+        new List<int> {17, 18, 19}
+    };
         public static readonly List<int>[] shopPointers = new List<int>[]
         {
-            new List<int>(),
-            new List<int>(),
-            new List<int>()
+        new List<int>(),
+        new List<int>(),
+        new List<int>()
         };
 
-        // Logging //
-        private readonly List<string> Events = new List<string> { };
-
-        // Create the randomizer component
-        public Randomizer(LiveSplitState state)
+        private Randomizer(GameMonitor game, ArchipelagoClient ap, Action<string> show, Action<string> log)
         {
-            this.state = state;
-            RandomizerLabel = new SimpleLabel();
-            settingsControl = new MomodoraArchipelagoRandomizerSettings();
-            inventoryLock = new object();
-
-            // Create the archipelago object
-            archipelago = new Momo4Archipelago(SendMessage);
-
-            // Register the live split methods.
-            state.OnStart += OnStart;
-            state.OnReset += OnReset;
+            gameProc = game;
+            archipelago = ap;
+            ShowMessage = show;
+            LogMessage = log;
         }
 
-        private void OnReset(object sender, TimerPhase value)
+        /// <summary>
+        /// Configure the speical misc memory watchers referenced by the randomizer.
+        /// </summary>
+        private void SetupSepcialMemoryWatchers()
         {
-            randomizerRunning = false;
-            LogResults();
-
-            // Reset the shops so as to not affect other runs
-            if (gameProc != null && gameProc.VerifyProcessRunning())
-                ResetShops();
-
-            // Disconnect from and reset the archipealgo connection
-            archipelago.Disconnect();
-
-            // Strong argument to skip this and re-connect in onStart instead, 
-            // but this matches the plugin's original design philosiphy where
-            //  clock stopped = randomizer stopped
-            archipelago = new Momo4Archipelago(SendMessage);
-        }
-
-        private void OnStart(object sender, EventArgs e)
-        {
-            gameProc = GameMonitor.TryConnectToGame();
-
-            if (gameProc != null && gameProc.VerifyProcessRunning())
-            {
-                Events.Clear();
-
-                // Register update functions on the special watchers
-                SetupSepcialUpdateEvents();
-                
-                // Archipelago setup contains a lot of server connection and 
-                // data retrieval waiting that is better done asynchronously.
-                ConfigureArchipelagoAsync();
-            }
-        }
-
-        /*
-         * Configure the speical misc memory watchers referenced by the randomizer.
-         */
-        private void SetupSepcialUpdateEvents()
-        {
-            // Configure the update events for the old memory watchers used throught this randomizer (mostly unchanged)
+            // Configure the update LogMessages for the old memory watchers used throught this randomizer (mostly unchanged)
             gameProc.levelIDWatcher.OnChanged += CheckRoom;
 
             gameProc.inGameWatcher.OnChanged += (old, current) =>
             {
                 if (!Convert.ToBoolean(current))
-                    progress.LoadVariables(Event);
+                    progress.LoadVariables(LogMessage);
             };
 
             gameProc.deathWatcher.OnChanged += (old, current) =>
@@ -123,7 +68,7 @@ namespace MomodoraArchipelago
                 // If the number of deaths has increased, we must have died
                 if (current > old)
                 {
-                    progress.LoadVariables(Event);
+                    progress.LoadVariables(LogMessage);
                     archipelago.NotifyPlayerDeath(gameProc.ReadValue<int>(gameProc.levelIDPointer));
                 }
             };
@@ -133,7 +78,7 @@ namespace MomodoraArchipelago
                 // If the number of times the game has been saved has increased, we must have saved
                 if (current > old)
                 {
-                    progress.SaveVariables(Event);
+                    progress.SaveVariables(LogMessage);
                     archipelago.Save();
                 }
             };
@@ -142,16 +87,17 @@ namespace MomodoraArchipelago
 
             gameProc.currentHealthWatcher.OnChanged += (old, current) =>
             {
-                if(old == 0 && current != 0)
+                if (old == 0 && current != 0)
                 {
                     Debug.WriteLine("Respawning");
                     gameProc.UpdateChargeItemWatchers(); // Update the watchers so they know about the inventory reset.
-                    archipelago.ResyncArchipeligoItemsOnDeath();
+                    archipelago.ResyncArchipeligoItemsOnDeath(ArchipelagoGrantItem);
                 }
 
                 // Check if HP loss should kill the player
                 else if (current != 0 && current < old)
-                    if(archipelago.ShouldFastKill(gameProc.ReadValue<int>(gameProc.levelIDPointer))){
+                    if (archipelago.ShouldFastKill(gameProc.ReadValue<int>(gameProc.levelIDPointer)))
+                    {
                         gameProc.WriteValue<double>(gameProc.currentHealthPointer, 0);
                     }
             };
@@ -162,42 +108,53 @@ namespace MomodoraArchipelago
             SetupSpiderWatcher();
         }
 
-        private async void ConfigureArchipelagoAsync(){
+        /// <summary>
+        /// Factory to create and initialze the randomizer.
+        /// </summary>
+        /// <param name="gameProc">The momodora reverie under the moonlight game process monitor.</param>
+        /// <param name="url">The url of the ap server.</param>
+        /// <param name="port">The port for the ap server.</param>
+        /// <param name="slot">The slot number for the ap connection.</param>
+        /// <param name="password">The password for the ap conenction.</param>
+        /// <param name="ShowMessage">A delegate to show a message to the player.</param>
+        /// <param name="LogMessage">A delegate to log a message in a file.</param>
+        /// <returns>An awaitable task with an initialzed randomizer object, or null if it was not completed successfully.</returns>
+        public async static Task<Randomizer> InitializeRandomizer(GameMonitor gameProc, string url, int port, string slot, string password, Action<string> ShowMessage, Action<string> LogMessage)
+        {
             // Connect to the archipelago session
-            if (archipelago.ConnectArchipelago(
-                settingsControl.GetServerAddress(),
-                settingsControl.GetServerPort(),
-                settingsControl.GetSlot(),
-                settingsControl.GetServerPassword()
-            )) {
-                // Does not seem to do anything ??
-                progress.LoadRandomizerState(archipelago, Event);
+            if (ArchipelagoClient.Connect(url, port, slot, password, ShowMessage) is ArchipelagoClient client)
+            {
 
                 // Initialize the randomizer
-                await archipelago.InitializeRandomizer(
-                    ArchipelagoGrantItem,
-                    KillPlayer,
-                    CreateLocationMemoryWatcherEvent
+                var rando = new Randomizer(gameProc, client, ShowMessage, LogMessage);
+                rando.progress.LoadRandomizerState(client, LogMessage);
+                await client.InitializeRandomizer(
+                    rando.KillPlayer,
+                    rando.ArchipelagoGrantItem,
+                    rando.CreateLocationMemoryWatcherLogMessage
                 );
 
-                BanShopItems();
+                rando.BanShopItems();
+                rando.SetupSepcialMemoryWatchers();
 
                 // Check if we started the game in a shop room
-                if(GameInfo.shopLocations.Contains(gameProc.ReadValue<int>(gameProc.levelIDPointer)))
-                    ModifyShopInventory(gameProc.ReadValue<int>(gameProc.levelIDPointer));
+                if (GameInfo.shopLocations.Contains(gameProc.ReadValue<int>(gameProc.levelIDPointer)))
+                    rando.ModifyShopInventory(gameProc.ReadValue<int>(gameProc.levelIDPointer));
 
-                SendMessage("Randomization Complete!");
-                randomizerRunning = true;
+                ShowMessage("Randomization Complete!");
+
+                return rando;
             }
+            return null;
         }
 
-        /*
-         * Function to setup a memory watcher to preform a specific location check.
-         * locationID = the id of the location to setup the watcher at
-         * newItemID = the ID of the item to give at the location
-         * itemName = the name of the item to show to the user
-         */
-        private void CreateLocationMemoryWatcherEvent(int locationID, int newItemID, string itemName)
+        /// <summary>
+        /// Function to setup a memory watcher to preform a specific location check.
+        /// </summary>
+        /// <param name="locationID">the id of the location to setup the watcher at</param>
+        /// <param name="newItemID">the ID of the item to give at the location</param>
+        /// <param name="itemName">the name of the item to show to the user</param>
+        private void CreateLocationMemoryWatcherLogMessage(int locationID, int newItemID, string itemName)
         {
             if (8 <= locationID && locationID <= 19)// If item is a shop item
             {
@@ -206,11 +163,11 @@ namespace MomodoraArchipelago
             else
             {
                 // Save the mappings in the debug file
-                if(GameInfo.sourceIdMapping.ContainsKey(locationID))
-                    Debug.WriteLine("Item '" + itemName + "' generated at " + Enum.GetName(typeof(Items), GameInfo.sourceIdMapping[locationID]));
+                if (GameInfo.sourceIdMapping.TryGetValue(locationID, out int value))
+                    Debug.WriteLine("Item '" + itemName + "' generated at " + Enum.GetName(typeof(Items), value));
                 else
                     Debug.WriteLine("Item '" + itemName + " generated at position " + locationID);
-                
+
                 // Setup a memory watcher for the item source
                 gameProc.CreateRandomizerSourceWatcher(gameProc.potentialSourcesPointers[locationID], (old, current) =>
                     {
@@ -218,12 +175,12 @@ namespace MomodoraArchipelago
                         int levelID = gameProc.ReadValue<int>(gameProc.levelIDPointer);
                         if (current == 1 && GameInfo.sourceToLevelMapping[locationID].Contains(levelID))
                         {
-                            // track the spring leaf event
+                            // track the spring leaf the log
                             if (locationID == 28) progress.hasBathedLeaf = true;
-                            
+
                             // Perform the item replacement
                             ReplaceItem(newItemID, gameProc.potentialSourcesPointers[locationID]);
-                            RandomizerLabel.Text = $"Got {itemName}!";
+                            ShowMessage($"Got {itemName}!");
 
                             // Tell Archipelago that we checked a location
                             archipelago.NotifyLocationChecked(locationID);
@@ -233,7 +190,7 @@ namespace MomodoraArchipelago
                 // Whenever we enter this item's room, preload its name so we can display it on screen.
                 int stringIndex = GameInfo.sourceToStringMapping[locationID];
                 //Shop items are handled elsewhere
-                if(stringIndex != -1)
+                if (stringIndex != -1)
                 {
                     // On screen transitions, check for this location and swap its name in memory
                     gameProc.levelIDWatcher.OnChanged += (old, current) =>
@@ -250,14 +207,16 @@ namespace MomodoraArchipelago
             }
         }
 
-        /*
-         * Adds a new item to the players inventory and removes the last item acquired
-         * id = id of item to give out
-         * addr = IntPtr to source of item given out
-         */
+        /// <summary>
+        /// Adds a new item to the players inventory and removes the last item acquired
+        /// </summary>
+        /// <param name="id">id of item to give out</param>
+        /// <param name="addr">IntPtr to source of item given out</param>
+        /// <returns></returns>
         private bool ReplaceItem(int id, IntPtr addr)
         {
-            lock(inventoryLock) {
+            lock (inventoryLock)
+            {
                 RemoveItem();
 
                 // If it's our item, give it to the player
@@ -268,13 +227,14 @@ namespace MomodoraArchipelago
             }
         }
 
-        /*
-         * Archipelago wrapper for the grant item function
-         * id = id of item to give
-         */
+        /// <summary>
+        /// Archipelago wrapper for the grant item function
+        /// </summary>
+        /// <param name="id">id of item to give</param>
         private void ArchipelagoGrantItem(int id)
         {
-            lock(inventoryLock) {
+            lock (inventoryLock)
+            {
                 if (shopping)
                     deferredItemQueue.Add(id);
                 else
@@ -282,28 +242,43 @@ namespace MomodoraArchipelago
             }
         }
 
-        /*
-         * Grant all items in the deferred item queue.
-         */
+        /// <summary>
+        /// Grant all items in the deferred item queue.
+        /// </summary>
         private void GrantDeferredItems()
         {
-            lock(inventoryLock) {
+            lock (inventoryLock)
+            {
                 foreach (int id in deferredItemQueue)
                     GrantItem(id, IntPtr.Zero);
                 deferredItemQueue.Clear();
             }
         }
 
-        /*
-         * Adds a new item to the players inventory (with no replacement)
-         * id = id of item to give out
-         * addr = IntPtr to source of item given out
-         */
+        /// <summary>
+        /// Update method which should be called on a timer by parent classes to update the memory watchers
+        /// </summary>
+        public void Update()
+        {
+            if (gameProc.InGame && gameProc.VerifyProcessRunning())
+            {
+                // Unsure if this is actually required? it seems like it should happen automatically?
+                gameProc.UpdateSpecialWatchers();
+                gameProc.UpdateRandomizerSourceWatchers();
+            }
+        }
+
+        /// <summary>
+        /// Adds a new item to the players inventory (with no replacement)
+        /// </summary>
+        /// <param name="id">id of item to give out</param>
+        /// <param name="addr">IntPtr to source of item given out</param>
+        /// <returns>Was the item actually given to the player.</returns>
         private bool GrantItem(int id, IntPtr addr)
         {
             bool res = true;
             Debug.WriteLine("Giving item id: " + id);
-            
+
             int allocatedMemory = gameProc.ReadValue<int>(IntPtr.Subtract(gameProc.inventoryItemsStartPointer, 0x10));
             Debug.WriteLine("Allocated memory: " + allocatedMemory);
             int totalItems = gameProc.ReadValue<int>(gameProc.totalItemsPointer);
@@ -316,7 +291,7 @@ namespace MomodoraArchipelago
             else if (id == (int)Items.VitalityChunk)
             {
                 double fragments = gameProc.ReadValue<double>(gameProc.vitalityFragmentCountPointer);
-                AdjustVitalityFragments((fragments > 0)? 4: 5); // Since there are 17 total, the first chunk is worth an extra
+                AdjustVitalityFragments((fragments > 0) ? 4 : 5); // Since there are 17 total, the first chunk is worth an extra
             }
             else if (id >= (int)Items.Munny1 && id <= (int)Items.Munny999)
             {
@@ -358,11 +333,11 @@ namespace MomodoraArchipelago
                 res = false;
             }
             gameProc.UpdateChargeItemWatchers(); // Update the memeory watchers to clear this item's report before its checked elsewhere.
-            if(res == true) Event("\nItem " + id + " given, total items: " + totalItems + "\n");
-            else Event("\nUnable to give item " + id + ", total items: " + totalItems + "\n");
+            if (res == true) LogMessage("\nItem " + id + " given, total items: " + totalItems + "\n");
+            else LogMessage("\nUnable to give item " + id + ", total items: " + totalItems + "\n");
             return res;
         }
-      
+
         private void AddLeaf()
         {
             gameProc.WriteValue<double>(gameProc.potentialSourcesPointers[28], 1);
@@ -370,56 +345,57 @@ namespace MomodoraArchipelago
             AddItem((int)Items.FreshSpringLeaf);
         }
 
-        /*
-         * Remove the most recently obtained item and report which item was removed.
-         */
+        /// <summary>
+        /// Remove the most recently obtained item.
+        /// </summary>
+        /// <returns>The id of the removed item.</returns>
         private Items RemoveItem()
         {
             gameProc.UpdateChargeItemWatchers(); // Update the watchers to check if any charge item values changed.
 
             if (gameProc.taintedMissiveWatcher.Changed)
             {
-                Event("Removing missive\n");
+                LogMessage("Removing missive\n");
                 RemoveChargeItem((int)Items.TaintedMissive, gameProc.taintedMissiveWatcher.Current - gameProc.taintedMissiveWatcher.Old);
                 return Items.TaintedMissive;
             }
             else if (gameProc.bellflowerWatcher.Changed)
             {
-                Event("\nRemoving bellflower\n");
+                LogMessage("\nRemoving bellflower\n");
                 RemoveChargeItem((int)Items.Bellflower, gameProc.bellflowerWatcher.Current - gameProc.bellflowerWatcher.Old);
                 return Items.Bellflower;
             }
             else if (gameProc.passifloraWatcher.Changed)
             {
-                Event("\nRemoving passiflora\n");
+                LogMessage("\nRemoving passiflora\n");
                 RemoveChargeItem((int)Items.Passiflora, gameProc.passifloraWatcher.Current - gameProc.passifloraWatcher.Old);
                 return Items.Passiflora;
             }
             else if (gameProc.ivoryBugWatcher.Changed && archipelago.Bugs)
             {
-                Event("\nRemoving IB\n");
+                LogMessage("\nRemoving IB\n");
                 RemoveChargeItem((int)Items.IvoryBug, 1);
                 return Items.IvoryBug;
             }
             else if (gameProc.crestFragmentWatcher.Changed)
             {
-                Event("\nRemoving Crest Frag\n");
+                LogMessage("\nRemoving Crest Frag\n");
                 return RemoveCrestFragment();
             }
             else if (gameProc.vitalityFragmentWatcher.Changed && archipelago.Vitality)
             {
-                Event("\nRemoving Vit Frag\n");
+                LogMessage("\nRemoving Vit Frag\n");
                 AdjustVitalityFragments(-1);
                 return Items.VitalityFragment;
             }
             else if (gameProc.levelIDWatcher.Current == 83)
             {
-                Event("\nGreen leaf upgraded, do not remove stuff\n");
+                LogMessage("\nGreen leaf upgraded, do not remove stuff\n");
                 return Items.None;
             }
             else
             {
-                Event("\nRemoving last item in inventory\n");
+                LogMessage("\nRemoving last item in inventory\n");
                 return RemoveLastItem();
             }
         }
@@ -456,7 +432,7 @@ namespace MomodoraArchipelago
                     return;
             }
             bool hasItem = progress.hasChargeItem[index];
-            double currentMaxCharges = hasItem? gameProc.ReadValue<double>(maxValuePointer): 0;
+            double currentMaxCharges = hasItem ? gameProc.ReadValue<double>(maxValuePointer) : 0;
             int increase = GetChargeItemIncrease(id, currentMaxCharges);
 
             gameProc.WriteValue(maxValuePointer, increase + currentMaxCharges);
@@ -470,14 +446,19 @@ namespace MomodoraArchipelago
             }
         }
 
-        /*
-         * Calculate the amount of additional charges to give for a specific item/current charge amount.
-         * id = the item id we are adding charges to
-         * currentCharges = the current amount of charges the item has.
-         * Note: currentCharges is stored internally as a double, which i dont trust enough to compare using ==
-         */
-        private int GetChargeItemIncrease(int id, double currentCharges) {
-            switch (id) {
+        /// <summary>
+        /// Calculate the amount of additional charges to give for a specific item/current charge amount.
+        /// </summary>
+        /// <remarks>
+        /// currentCharges is stored internally as a double, which i dont trust enough to compare using ==
+        /// </remarks>
+        /// <param name="id">the item id we are adding charges to</param>
+        /// <param name="currentCharges" the current amount of charges the item has.</param>
+        /// <returns></returns>
+        private int GetChargeItemIncrease(int id, double currentCharges)
+        {
+            switch (id)
+            {
                 case (int)Items.IvoryBug:
                     return 1; // Ivory Bugs are always worth one
 
@@ -530,7 +511,7 @@ namespace MomodoraArchipelago
             gameProc.WriteValue(maxValuePointer, currentCharges - charges);
             if (saveValuePtr != IntPtr.Zero)
                 gameProc.WriteValue(saveValuePtr, currentCharges - charges);
-            
+
             // Get rid of the item if it doesnt have any charges
             // TODO: figure out how to stop accumulating empty bellflowers
             // Likely need to check equipped items or look for and replace empty de-equipped bellflowers at later time
@@ -555,7 +536,7 @@ namespace MomodoraArchipelago
             var totalItemAmount = gameProc.ReadValue<int>(gameProc.totalItemsPointer);
 
             // Save the removed item's type so we can report it later.
-            Items removedItem = (Items) PeekLastItem();
+            Items removedItem = (Items)PeekLastItem();
 
             gameProc.WriteValue<int>(gameProc.totalItemsPointer, (int)totalItemAmount - 1);
             return removedItem;
@@ -631,23 +612,23 @@ namespace MomodoraArchipelago
 
                     if (unlocked != progress.hasKey[i])//If the state of "key acquired" is different than it should be invert value
                     {
-                        Event("\nApplying door logic\n");
-                        Event("Door " + (unlocked ? "closed" : "opened") + "\n");
-                        gameProc.WriteValue<double>(gameProc.potentialSourcesPointers[j], unlocked? 0: 1); // flip the door state
+                        LogMessage("\nApplying door logic\n");
+                        LogMessage("Door " + (unlocked ? "closed" : "opened") + "\n");
+                        gameProc.WriteValue<double>(gameProc.potentialSourcesPointers[j], unlocked ? 0 : 1); // flip the door state
                     }
                 }
                 else if (GameInfo.lockedDoorLocations[i].Contains(old) && !GameInfo.lockedDoorLocations[i].Contains(current))//If they just left the room revert state of flag
                 {
-                    gameProc.WriteValue<double>(gameProc.potentialSourcesPointers[j], unlocked? 0: 1);
+                    gameProc.WriteValue<double>(gameProc.potentialSourcesPointers[j], unlocked ? 0 : 1);
                 }
             }
-            
+
             // Enable or disable the player Y Watcher as appropriate
             if (ShouldEnableYWatcher(current))
                 EnablePlayerYWatcher();
             else if (gameProc.playerYWatcher != null)
                 gameProc.playerYWatcher.Enabled = false;
-            
+
             // Update/Reset the shop items
             if (GameInfo.shopLocations.Contains(current))
                 ModifyShopInventory(current);
@@ -657,12 +638,9 @@ namespace MomodoraArchipelago
             // DEBUG - set munny to 1000 every time you walk into a room
             //gameProc.WriteValue<double>(gameProc.munnyPointer, 1000);
         }
-
-
-        /**
-         * In some rooms, we track the player's Y value for various reasons.
-         *   this onUpdate function combines those checks.
-         */
+        
+        // In some rooms, we track the player's Y value for various reasons.
+        //   this onUpdate function combines those checks.
         private void PlayerYOnUpdate(double old, double curernt)
         {
             int room = gameProc.ReadValue<int>(gameProc.levelIDPointer);
@@ -680,7 +658,6 @@ namespace MomodoraArchipelago
                 {
                     gameProc.WriteValue<double>(gameProc.playerFormPointer, 0);
                 }
-
             }
 
             // Check If we are in the green leaf room
@@ -691,12 +668,12 @@ namespace MomodoraArchipelago
                 if (gameProc.playerYWatcher.Current > 176 && playerXPos > 410)
                 {
                     //If the state of "has picked green leaf source" is different from "found green leaf" invert
-                    if (Convert.ToBoolean(pickedUpLeaf) != progress.hasBathedLeaf) 
+                    if (Convert.ToBoolean(pickedUpLeaf) != progress.hasBathedLeaf)
                         gameProc.WriteValue<double>(gameProc.potentialSourcesPointers[28], 1 - pickedUpLeaf);
                 }
                 else
                 {
-                    gameProc.WriteValue<double>(gameProc.potentialSourcesPointers[28], progress.hasFoundGreenLeaf? 0: 1);
+                    gameProc.WriteValue<double>(gameProc.potentialSourcesPointers[28], progress.hasFoundGreenLeaf ? 0 : 1);
                 }
             }
         }
@@ -728,20 +705,24 @@ namespace MomodoraArchipelago
 
             if (GameInfo.shopLocations.Contains(room))// If player is in a shop room
             {
-                if (current != 0) { // If player is in a conversation with an npc
-                    Event("\nShopping...\n");
+                if (current != 0)
+                { // If player is in a conversation with an npc
+                    LogMessage("\nShopping...\n");
                     shopping = true;
                     AddBoughtItemPlaceholders(room);
 
                     // Before we shop, make sure to acknowledge any pending charge item updates.
                     gameProc.UpdateChargeItemWatchers();
 
-                } else {
-                    Event("\nShopping complete!\n");
+                }
+                else
+                {
+                    LogMessage("\nShopping complete!\n");
                     ReplacePurchases(room);
                     shopping = false;
                     GrantDeferredItems();
-                    if (deferredDeathCause != null) {
+                    if (deferredDeathCause != null)
+                    {
                         KillPlayer(deferredDeathCause);
                         deferredDeathCause = null;
                     }
@@ -749,29 +730,34 @@ namespace MomodoraArchipelago
             }
         }
 
-        /*
-         * Check if the player's inventory contains any of the placeholder shop items
-         * and swap them with the appropriate randomized item instead.
-         * room = the level id of the current room.
-         * Note: In order to better control this method's timings, it now happens exactly once when the player leaves the shop.
-         *       As long as i properly lock and defer server items while shopping, this should be much safer.
-         */
+        /// <summary>
+        /// Check if the player's inventory contains any of the placeholder shop items
+        ///  and swap them with the appropriate randomized item instead.
+        /// </summary>
+        /// <remarks>
+        /// In order to better control this method's timings, it now happens exactly once when the player leaves the shop.
+        /// As long as i properly lock and defer server items while shopping, this should be much safer.
+        /// </remarks>
+        /// <param name="room">the level id of the current room.</param>
         private void ReplacePurchases(int room)
         {
             int currentShopLocation = GameInfo.shopLocations.IndexOf(room);
             List<int> currentShopItems = shopItems[currentShopLocation]; // get shop's randomized inventory
 
-            lock (inventoryLock) {
+            lock (inventoryLock)
+            {
 
                 // Remove all purchased shop placeholder items from the player's inventory
                 List<Items> purchasedItems = new List<Items>();
-                while (GameInfo.shopPlaceholderItems.Contains(PeekLastItem())) {
+                while (GameInfo.shopPlaceholderItems.Contains(PeekLastItem()))
+                {
                     purchasedItems.Add(RemoveItem());
-                    Event("Last acquired item: " + purchasedItems.Last() + "\n");
+                    LogMessage("Last acquired item: " + purchasedItems.Last() + "\n");
                 }
 
                 // Check each placeholder to see if it is a newly purchased item
-                foreach (var placeholderItem in purchasedItems) {
+                foreach (var placeholderItem in purchasedItems)
+                {
                     int listPosition = GameInfo.shopPlaceholderItems.IndexOf((int)placeholderItem);
 
                     // Ensure the item is newly purchased, and not one of the bought item placeholders.
@@ -779,14 +765,14 @@ namespace MomodoraArchipelago
                     {
                         // For each purchased item, give the player the real item instead
                         int originalItem = GameInfo.originalShopItems[currentShopLocation][listPosition];
-                        SendMessage($"Bought {shopItemNames[originalItem - GameInfo.originalShopItems[0][0]]}!");
+                        ShowMessage($"Bought {shopItemNames[originalItem - GameInfo.originalShopItems[0][0]]}!");
 
                         // Update value of hasBoughtItem in all shops that "sell" originalItem
-                        for (int i = 0; i < GameInfo.originalShopItems.Count(); i++) 
+                        for (int i = 0; i < GameInfo.originalShopItems.Count(); i++)
                             for (int j = 0; j < GameInfo.originalShopItems[i].Count(); j++)
                                 if (GameInfo.originalShopItems[i][j] == originalItem)
                                 {
-                                    Event("Updating shop " + Enum.GetName(typeof(Shops), i) + ": position " + j + "\n");
+                                    LogMessage("Updating shop " + Enum.GetName(typeof(Shops), i) + ": position " + j + "\n");
                                     progress.hasBoughtItem[i][j] = true;
                                 }
 
@@ -801,19 +787,19 @@ namespace MomodoraArchipelago
             }
 
             // Summarize the purchase
-            Event("\nAt shop " + Enum.GetName(typeof(Shops), currentShopLocation) + "\n");
+            LogMessage("\nAt shop " + Enum.GetName(typeof(Shops), currentShopLocation) + "\n");
             foreach (var item in shopItems[currentShopLocation])
             {
-                Event("Items sold: " + Enum.GetName(typeof(Items), item) +
+                LogMessage("Items sold: " + Enum.GetName(typeof(Items), item) +
                     (progress.hasBoughtItem[currentShopLocation][shopItems[currentShopLocation].IndexOf(item)] ? " was bought" : " wasn't bought") + "\n");
             }
         }
 
-        /*
-         * Add placeholders to the players inventory for any items already purchased.
-         *  By doing this, the in game shop menu will show the item as already purchased.
-         * room = the level id of the current room
-         */
+        /// <summary>
+        /// Add placeholders to the players inventory for any items already purchased,
+        ///   which will force the in game shop menu will show the item as already purchased.
+        /// </summary>
+        /// <param name="room">the level id of the current room</param>
         private void AddBoughtItemPlaceholders(int room)
         {
             // Get list of what items have already been bought in the current shop
@@ -823,21 +809,25 @@ namespace MomodoraArchipelago
                 if (boughtItems[i]) // If item was bought add the placeholder
                 {
                     AddItem(GameInfo.shopPlaceholderItems[i]);
-                    Event($"Adding placholder id {GameInfo.shopPlaceholderItems[i]}\n");
+                    LogMessage($"Adding placholder id {GameInfo.shopPlaceholderItems[i]}\n");
                 }
         }
 
-        /* 
-         * Get the id of the most recently acquired item
-         */
-        private int PeekLastItem(){
+        /// <summary>
+        /// Get the id of the most recently acquired item
+        /// </summary>
+        private int PeekLastItem()
+        {
             int invSize = gameProc.ReadValue<int>(gameProc.totalItemsPointer);
             return (int)gameProc.ReadValue<double>(IntPtr.Add(gameProc.inventoryItemsStartPointer, 0x10 * (invSize - 1)));
         }
 
-        /*
-         * Save the information about the item to be displayed in the shop.
-         */
+        /// <summary>
+        /// Save the information about the item to be displayed in the shop.
+        /// </summary>
+        /// <param name="origin">The id of the original item.</param>
+        /// <param name="swapped">The id of the new item.</param>
+        /// <param name="name">The display name of the new item.</param>
         private void SaveShopItem(int origin, int swapped, string name)
         {
             int itemPos, listPos;
@@ -853,13 +843,13 @@ namespace MomodoraArchipelago
             }
         }
 
-        /*
-         * Ban disallowed items from the shop
-         */
+        /// <summary>
+        /// Ban disallowed items from the shop
+        /// </summary>
         private void BanShopItems()
         {
             // Ban the pocket incensory - because this only appears if you dont have one, we must ban it
-            SaveShopItem(19, (int) Items.ShopPlaceholder4, "Sold Out");
+            SaveShopItem(19, (int)Items.ShopPlaceholder4, "Sold Out");
             progress.hasBoughtItem[6][2] = true;
         }
 
@@ -872,7 +862,7 @@ namespace MomodoraArchipelago
             int id = 22, pValue;
             byte[] bytes;
 
-            Event("\nSetting items for " + Enum.GetName(typeof(Shops), currentShopLocation) + " shop\n");
+            LogMessage("\nSetting items for " + Enum.GetName(typeof(Shops), currentShopLocation) + " shop\n");
             for (int i = 0; i < list.Count(); i++)
             {
                 id = GameInfo.shopPlaceholderItems[i];
@@ -887,18 +877,23 @@ namespace MomodoraArchipelago
                 {
                     // Determine the item name and description
                     string name, description;
-                    if (shopItemsAux[i] == (int)Items.ArchipelagoItem) {
+                    if (shopItemsAux[i] == (int)Items.ArchipelagoItem)
+                    {
                         name = "AP Item"; // Respecting short item name by storing the variable string in the description
-                        // Get the replced item's id, then subtract it by id of the first shop item to get the index
+                                          // Get the replced item's id, then subtract it by id of the first shop item to get the index
                         description = shopItemNames[GameInfo.originalShopItems[currentShopLocation][i] - GameInfo.originalShopItems[0][0]];
-                    
-                    } else if (GameInfo.shopPlaceholderItems.Contains(shopItemsAux[i])) {
+
+                    }
+                    else if (GameInfo.shopPlaceholderItems.Contains(shopItemsAux[i]))
+                    {
                         // If it's a placeholder item, use the placeholder info
                         int index = GameInfo.shopPlaceholderItems.IndexOf(shopItemsAux[i]);
                         name = GameInfo.placeholderShopNames[index];
                         description = GameInfo.placeholderShopDescription[index];
 
-                    } else {
+                    }
+                    else
+                    {
                         // Otherwise, its a sepcial item. Use the name we saved when constructing the shop
                         name = shopItemNames[GameInfo.originalShopItems[currentShopLocation][i] - GameInfo.originalShopItems[0][0]];
 
@@ -945,7 +940,7 @@ namespace MomodoraArchipelago
             int id, idAux = 22;
             byte[] bytes;
 
-            Event("\nResetting items for " + Enum.GetName(typeof(Shops), currentShopLocation) + " shop\n");
+            LogMessage("\nResetting items for " + Enum.GetName(typeof(Shops), currentShopLocation) + " shop\n");
             for (int i = 0; i < list.Count(); i++)
             {
                 idAux = GameInfo.shopPlaceholderItems[i];
@@ -979,179 +974,47 @@ namespace MomodoraArchipelago
                 }
             }
         }
-        
-        private void ResetShops() {
+
+        /// <summary>
+        /// Undo the randomization, and disconnect from the server.
+        /// Return the game to its vanilla state so that a normal run can be played after saving and quitting.
+        /// </summary>
+        public void Teardown()
+        {
+            archipelago.Disconnect();
+            ResetShops();
+        }
+
+        // TODO: this is causing an error to be thrown on close, need to investigate why
+        private void ResetShops()
+        {
             foreach (var room in GameInfo.shopLocations)
                 ResetShopInventory(room);
         }
 
-        private void Event(string text)
+        /// <summary>
+        /// Kill a player if requested (by deathlink or similar)
+        /// </summary>
+        /// <param name="cause">String describing the cause of the death.</param>
+        private void KillPlayer(string cause)
         {
-            if (settingsControl.logEnabled == true)
+            if (archipelago.ShouldDeathLink(gameProc.ReadValue<int>(gameProc.levelIDPointer)))
             {
-                if (text.StartsWith("\n"))
+                if (!shopping)
                 {
-                    Events.Add("\n" + DateTime.Now.ToString("T") + ":" + text.Replace("\n", "") + "\n");
-                }
-                else Events.Add(DateTime.Now.ToString("T") + ":" + text);
-            }
-            Debug.WriteLine(text.Replace("\n", ""));
-        }
-
-        private void LogResults()
-        {
-            if(settingsControl.logEnabled == true)
-            {
-                Debug.WriteLine("Creating event log file");
-                var path = "Components/MomodoraArchipelagoRandomizer.log";
-                if (File.Exists(path))
-                {
-                    File.AppendAllText(path, "Running on version " + gameProc?.Version ?? 0 + "\n");
-                    Debug.WriteLine("Writing run events");
-                    foreach (var Event in Events)
-                    {
-                        File.AppendAllText(path, Event);
-                    }
-                }
-                else Debug.WriteLine("Failed to create event log file");
-            }
-        }
-
-        public string ComponentName => "Momodora Archipelago Randomizer";
-
-        public float HorizontalWidth {get; set;}
-
-        public float MinimumHeight => 10;
-
-        public float VerticalHeight { get; set; }
-
-        public float MinimumWidth => 200;
-
-        public float PaddingTop => 1;
-
-        public float PaddingBottom => 1;
-
-        public float PaddingLeft => 1;
-
-        public float PaddingRight => 1;
-
-        public IDictionary<string, Action> ContextMenuControls => null;
-
-        public void Dispose()
-        {
-        }
-
-        public void DrawHorizontal(System.Drawing.Graphics g, LiveSplitState state, float height, System.Drawing.Region clipRegion)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void DrawVertical(System.Drawing.Graphics g, LiveSplitState state, float width, System.Drawing.Region clipRegion)
-        {
-            var textHeight = g.MeasureString("A", state.LayoutSettings.TextFont).Height;
-            VerticalHeight = textHeight * 1.5f;
-
-            prepareDraw(state);
-            RandomizerLabel.SetActualWidth(g);
-            RandomizerLabel.Width = RandomizerLabel.ActualWidth;
-            RandomizerLabel.Height = VerticalHeight;
-            RandomizerLabel.X = width-PaddingRight-RandomizerLabel.Width;
-            RandomizerLabel.Y = 3f;
-
-            DrawBackground(g, width, VerticalHeight);
-
-            RandomizerLabel.Draw(g);
-        }
-
-        public void prepareDraw(LiveSplitState state)
-        {
-            RandomizerLabel.Font = settingsControl.OverrideTextFont ? settingsControl.TextFont : state.LayoutSettings.TextFont;
-            RandomizerLabel.ForeColor = settingsControl.OverrideTextColor ? settingsControl.TextColor : state.LayoutSettings.TextColor;
-            RandomizerLabel.OutlineColor = settingsControl.OverrideTextColor ? settingsControl.OutlineColor : state.LayoutSettings.TextOutlineColor;
-            RandomizerLabel.ShadowColor = settingsControl.OverrideTextColor ? settingsControl.ShadowColor : state.LayoutSettings.ShadowsColor;
-
-            RandomizerLabel.VerticalAlignment = StringAlignment.Center;
-            RandomizerLabel.HorizontalAlignment = StringAlignment.Center;
-        }
-
-        private void DrawBackground(Graphics g, float width, float height)
-        {
-            if (settingsControl.BackgroundColor.A > 0
-                || settingsControl.BackgroundGradient != GradientType.Plain
-                && settingsControl.BackgroundColor2.A > 0)
-            {
-                var gradientBrush = new LinearGradientBrush(
-                            new PointF(0, 0),
-                            settingsControl.BackgroundGradient == GradientType.Horizontal
-                            ? new PointF(width, 0)
-                            : new PointF(0, height),
-                            settingsControl.BackgroundColor,
-                            settingsControl.BackgroundGradient == GradientType.Plain
-                            ? settingsControl.BackgroundColor
-                            : settingsControl.BackgroundColor2);
-                g.FillRectangle(gradientBrush, 0, 0, width, height);
-            }
-        }
-
-        public XmlNode GetSettings(XmlDocument document)
-        {
-            return settingsControl.GetSettings(document);
-        }
-
-        public Control GetSettingsControl(LayoutMode mode)
-        {
-            return settingsControl;
-        }
-
-        public void SetSettings(XmlNode settings)
-        {
-            settingsControl.SetSettings(settings);
-        }
-
-        public void Update(IInvalidator invalidator, LiveSplitState state, float width, float height, LayoutMode mode)
-        {
-            if (gameProc != null && gameProc.VerifyProcessRunning() && randomizerRunning)
-            {
-                if (gameProc.InGame)
-                {
-                    // Unsure if this is actually required? it seems like it should happen automatically?
-                    gameProc.UpdateSpecialWatchers();
-                    gameProc.UpdateRandomizerSourceWatchers();
-                }
-
-                if (invalidator != null)
-                {
-                    invalidator.Invalidate(0, 0, width, height);
-                }
-            }
-        }
-
-        /*
-         * Kill a player if requested (by deathlink or similar)
-         * cause = the reason the player was killed
-         */
-        private void KillPlayer(string cause) {
-            if (archipelago.ShouldDeathLink(gameProc.ReadValue<int>(gameProc.levelIDPointer))) {
-                if (!shopping) {
-                    SendMessage($"Killed by {cause}.");
+                    ShowMessage($"Killed by {cause}.");
                     archipelago.IgnoreNextDeath = true;
                     gameProc.WriteValue<double>(gameProc.currentHealthPointer, 0);
-                } else deferredDeathCause = cause;
+                }
+                else deferredDeathCause = cause;
             }
         }
 
-        /*
-         * Send a message for logging and display
-         */
-        private void SendMessage(string message) {
-            Event(message);
-            RandomizerLabel.Text = message;
-        }
-
-        /*
-        * Setup the memory watcher to detect a boss kill
-        */
-        private void SetupFinalBossKillWatcher() {
+        /// <summary>
+        /// Setup the memory watcher to detect the final boss kill 
+        /// </summary>
+        private void SetupFinalBossKillWatcher()
+        {
             var watcher = gameProc.CreateSpecialMemoryWatcher<double>(gameProc.cutsceneStatePointer, (old, current) =>
                 {
                     // Cutscene State 1000 is triggered on boss death. We check that + room id to ensure the right state.
@@ -1161,10 +1024,11 @@ namespace MomodoraArchipelago
                 });
         }
 
-        /*
-         * Meow :3
-         */
-        private void SetupMeowWatcher() {
+        /// <summary>
+        /// Meow :3
+        /// </summary>
+        private void SetupMeowWatcher()
+        {
             // Setup the memory watcher to check the game's memory every 10 milliseconds 
             var watcher = gameProc.CreateSpecialMemoryWatcher<double>(gameProc.playerFormPointer);
 
@@ -1175,20 +1039,22 @@ namespace MomodoraArchipelago
                 watcher.Enabled = false;
             };
         }
- 
-        /*
-         * Setup the memory watcher to kill the player if the spider merchant dies. (anti-softlock)
-         */
-        private void SetupSpiderWatcher() {
+
+        /// <summary>
+        /// Setup the memory watcher to kill the player if the spider merchant dies. (anti-softlock)
+        /// </summary>
+        private void SetupSpiderWatcher()
+        {
             var watcher = gameProc.CreateSpecialMemoryWatcher<double>(gameProc.spiderMerchantPointer, (old, current) =>
                 {
-                    //SendMessage($"Spider: ({old} -> {current})."); // DEBUG
+                    //ShowMessage($"Spider: ({old} -> {current})."); // DEBUG
                     if (archipelago.ShouldSpiderMerchantKill() && current > old)
                     {
-                        SendMessage("Killed a Spider and Died of Guilt");
-                        gameProc.WriteValue<double>(gameProc.currentHealthPointer, 0);    
+                        ShowMessage("Killed a Spider and Died of Guilt");
+                        gameProc.WriteValue<double>(gameProc.currentHealthPointer, 0);
                     }
                 });
         }
     }
+
 }

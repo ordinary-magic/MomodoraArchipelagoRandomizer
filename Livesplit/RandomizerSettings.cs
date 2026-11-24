@@ -1,34 +1,57 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Xml;
 
 namespace LiveSplit.UI.Components
 {
-    partial class MomodoraArchipelagoRandomizerSettings : UserControl
+
+    partial class RandomizerSettings : UserControl
     {
+        [DefaultValue(typeof(Color), "White")]
         public Color TextColor { get; set; }
+
+        [DefaultValue(typeof(Color), "White")]
         public Color OutlineColor { get; set; }
+
+        [DefaultValue(typeof(Color), "Transparent")]
         public Color ShadowColor { get; set; }
+
+        [DefaultValue(false)]
         public bool OverrideTextColor { get; set; }
 
         public string TextFontString => SettingsHelper.FormatFont(TextFont);
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
         public Font TextFont { get; set; }
+
+        [DefaultValue(false)]
         public bool OverrideTextFont { get; set; }
 
+        [DefaultValue(typeof(Color), "Transparent")]
         public Color BackgroundColor { get; set; }
+
+        [DefaultValue(typeof(Color), "Transparent")]
         public Color BackgroundColor2 { get; set; }
+
+        [DefaultValue(GradientType.Plain)]
         public GradientType BackgroundGradient { get; set; }
+
+        [DefaultValue("Plain")]
         public string GradientString
         {
             get { return BackgroundGradient.ToString(); }
             set { BackgroundGradient = (GradientType)Enum.Parse(typeof(GradientType), value); }
         }
 
+        [DefaultValue(false)]
         public bool logEnabled { get; set; }
+
+        [DefaultValue(true)]
         public bool showLogWarning { get; set; }
 
-        public MomodoraArchipelagoRandomizerSettings()
+        public RandomizerSettings()
         {
             InitializeComponent();
             TextFont = new Font("Segoe UI", 13, FontStyle.Regular, GraphicsUnit.Pixel);
@@ -57,8 +80,8 @@ namespace LiveSplit.UI.Components
 
         private void MomodoraArchipelagoRandomizerSettings_Load(object sender, EventArgs e)
         {
-            chkColor_CheckedChanged(null, null);
-            chkFont_CheckedChanged(null, null);
+            chkColor_CheckedChanged(sender, e);
+            chkFont_CheckedChanged(sender, e);
         }
 
         private void chkColor_CheckedChanged(object sender, EventArgs e)
@@ -73,26 +96,30 @@ namespace LiveSplit.UI.Components
 
         private void mbGradientType_SelectedIndexChanged(object sender, EventArgs e)
         {
-            btnColor1.Visible = cmbGradientType.SelectedItem.ToString() != "Plain";
+            btnColor1.Visible = cmbGradientType.SelectedItem?.ToString() != "Plain";
             btnColor2.DataBindings.Clear();
             btnColor2.DataBindings.Add("BackColor", this, btnColor1.Visible ? "BackgroundColor2" : "BackgroundColor", false, DataSourceUpdateMode.OnPropertyChanged);
-            GradientString = cmbGradientType.SelectedItem.ToString();
+            GradientString = cmbGradientType.SelectedItem?.ToString() ?? "";
         }
 
         // Archipelago Settings
-        public string GetServerAddress(){
+        public string GetServerAddress()
+        {
             return textUrl.Text;
         }
 
-        public int GetServerPort(){
+        public int GetServerPort()
+        {
             return Convert.ToInt32(Math.Round(numberPort.Value, 0));
         }
 
-        public string GetSlot() {
+        public string GetSlot()
+        {
             return textSlot.Text;
         }
-        
-        public string GetServerPassword() {
+
+        public string GetServerPassword()
+        {
             return textPassword.Text;
         }
 
@@ -170,7 +197,7 @@ namespace LiveSplit.UI.Components
         {
             if (chkLog.Checked && showLogWarning)
             {
-                System.Windows.Forms.MessageBox.Show(
+                MessageBox.Show(
                         "With this option enabled a log file will be generated upon stopping the timer.\n" +
                         "This file will be located in the \"Components\" folder inside LiveSplit with" +
                         " the name MomodoraArchipelagoRandomizer.log. Each subsequent run will overwrite this file.\n" +

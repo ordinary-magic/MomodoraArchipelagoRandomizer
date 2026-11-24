@@ -1,0 +1,15 @@
+<!-- Common build configuration details for the various project files to share. -->
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net481</TargetFramework>
+    <Platform>x64</Platform>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup Label="UserMacros">
+    <!--The relative path to the folder used for builds. -->
+    <BuildPath>$(MSBuildThisFileDirectory)build\</BuildPath>
+    <!--Shortcut for the randomizer dll file-->
+    <RandomizerDir>..\Randomizer\bin\$(Platform)\$(Configuration)\$(TargetFramework)</RandomizerDir>
+    <RandomizerDll>$(RandomizerDir)\Momo4ApRandomizer.dll</RandomizerDll>
+  </PropertyGroup>
+</Project>
